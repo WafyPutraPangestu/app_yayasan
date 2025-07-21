@@ -12,6 +12,7 @@ class JenisKas extends Model
     protected $table = 'jenis_kas';
 
     protected $fillable = [
+        'kode_jenis_kas',
         'nama_jenis_kas',
         'target_lunas',
         'tipe_iuran',
@@ -20,6 +21,10 @@ class JenisKas extends Model
         'status',
     ];
 
+    protected $casts = [
+        'target_lunas' => 'integer',
+        'nominal_wajib' => 'integer',
+    ];
     public function kas()
     {
         return $this->hasMany(Kas::class);

@@ -17,9 +17,17 @@
             <form action="{{ route('jenis-kas.update', $jenisKa->id) }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
+                <div>
+                    <label for="kode_jenis_kas" class="block text-gray-700 text-sm font-bold mb-2">Kode Jenis Kas:</label>
+                    <input type="text" name="kode_jenis_kas" id="kode_jenis_kas"
+                        value="{{ old('kode_jenis_kas', $jenisKa->kode_jenis_kas) }}"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        maxlength="20" required>
+                </div>
 
                 <div>
-                    <label for="nama_jenis_kas" class="block text-gray-700 text-sm font-bold mb-2">Nama Jenis Kas:</label>
+                    <label for="nama_jenis_kas" class="block text-gray-700 text-sm font-bold mb-2">Nama Jenis
+                        Kas:</label>
                     <input type="text" name="nama_jenis_kas" id="nama_jenis_kas"
                         value="{{ old('nama_jenis_kas', $jenisKa->nama_jenis_kas) }}"
                         class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"

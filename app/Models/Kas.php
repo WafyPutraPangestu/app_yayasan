@@ -39,7 +39,7 @@ class Kas extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'jumlah' => 'decimal:2',
+        'jumlah' => 'integer',
         'tanggal' => 'date',
     ];
 

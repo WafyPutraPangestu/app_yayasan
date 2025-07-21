@@ -1,15 +1,5 @@
 <x-layout>
-    {{-- 
-        Script ini adalah otak dari form dinamis di bawah.
-        - 'allJenisKas' diambil dari controller, berisi semua data jenis kas.
-        - 'tipe': Mengontrol apakah form ini untuk 'pemasukan' atau 'pengeluaran'.
-        - 'selectedJenisKasId': Menyimpan ID jenis kas yang dipilih.
-        - 'filteredJenisKas': Menyaring 'allJenisKas' secara dinamis berdasarkan 'tipe'.
-        - 'selectedJenisKas': Objek data lengkap dari jenis kas yang dipilih.
-        - 'metodePembayaran': Mengontrol pilihan 'bulanan' atau 'lunas' untuk iuran wajib.
-        - 'updateJumlah': SEKARANG MENGISI OTOMATIS JUMLAH, TAPI TIDAK MENGUNCI INPUTNYA.
-        - 'rawAmount' & 'formattedAmount': Mengelola format Rupiah untuk input jumlah.
-    --}}
+
     <script>
         function cashForm() {
             // Mengambil data jenis kas yang dikirim dari controller
@@ -44,7 +34,7 @@
                             total = this.selectedJenisKas.nominal_wajib;
                         }
                         this.rawAmount = total;
-                        this.formattedAmount = total.toLocaleString('id-ID');
+                        this.formattedAmount = total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                     }
                 },
 
@@ -71,11 +61,40 @@
                     this.selectedJenisKasId = '';
                     this.rawAmount = 0;
                     this.formattedAmount = '';
+                },
+
+                // Fungsi callback ketika jenis kas dipilih dari search
+                onJenisKasSelected(jenisKas) {
+                    this.selectedJenisKasId = jenisKas.id;
+
+                    // Update allJenisKas dengan data dari search jika belum ada
+                    const existingIndex = allJenisKas.findIndex(jk => jk.id == jenisKas.id);
+                    if (existingIndex === -1) {
+                        // Tambahkan data dari search ke allJenisKas
+                        allJenisKas.push({
+                            id: jenisKas.id,
+                            nama_jenis_kas: jenisKas.text,
+                            tipe_iuran: jenisKas.tipe_iuran || null,
+                            nominal_wajib: jenisKas.nominal_wajib || null,
+                            target_lunas: jenisKas.target_lunas || null,
+                            default_tipe: jenisKas.default_tipe || this.tipe
+                        });
+                    } else {
+                        // Update data yang sudah ada dengan data dari search
+                        allJenisKas[existingIndex] = {
+                            ...allJenisKas[existingIndex],
+                            tipe_iuran: jenisKas.tipe_iuran || allJenisKas[existingIndex].tipe_iuran,
+                            nominal_wajib: jenisKas.nominal_wajib || allJenisKas[existingIndex].nominal_wajib,
+                            target_lunas: jenisKas.target_lunas || allJenisKas[existingIndex].target_lunas
+                        };
+                    }
+
+                    this.updateJumlah();
                 }
             };
         }
 
-        // Komponen custom select untuk pencarian anggota dari kode asli Anda
+        // Komponen custom select untuk pencarian
         function customSelect(config) {
             return {
                 open: false,
@@ -84,15 +103,26 @@
                 selectedOption: null,
                 isLoading: false,
                 placeholder: config.placeholder || 'Select an option',
+
                 init() {
-                    /* ... */ },
+                    // Set initial selected option jika ada
+                    if (config.initialValue) {
+                        const initialOption = this.options.find(opt => opt.id == config.initialValue);
+                        if (initialOption) {
+                            this.selectedOption = initialOption;
+                        }
+                    }
+                },
+
                 filteredOptions() {
                     if (!this.search) return this.options;
                     return this.options.filter(option => option.text.toLowerCase().includes(this.search.toLowerCase()));
                 },
+
                 isSelected(option) {
                     return this.selectedOption && this.selectedOption.id === option.id;
                 },
+
                 async updateOptions() {
                     if (typeof config.fetchOptions === 'function') {
                         this.isLoading = true;
@@ -103,10 +133,22 @@
                         }
                     }
                 },
+
                 selectOption(option) {
                     this.selectedOption = option;
                     this.open = false;
                     this.search = '';
+
+                    // Callback jika ada
+                    if (typeof config.onSelect === 'function') {
+                        config.onSelect(option);
+                    }
+                },
+
+                reset() {
+                    this.selectedOption = null;
+                    this.search = '';
+                    this.open = false;
                 }
             };
         }
@@ -179,7 +221,14 @@
 
                     <div x-show="tipe === 'pemasukan'" x-transition>
                         <label class="block text-sm font-medium text-secondary-700 mb-2">Anggota</label>
-                        <div x-data="customSelect({ placeholder: 'Cari anggota...', async fetchOptions(search) { if (!search) return []; const response = await fetch('{{ route('users.search') }}?q=' + encodeURIComponent(search)); return await response.json(); } })" class="relative">
+                        <div x-data="customSelect({
+                            placeholder: 'Cari anggota...',
+                            async fetchOptions(search) {
+                                if (!search) return [];
+                                const response = await fetch('{{ route('users.search') }}?q=' + encodeURIComponent(search));
+                                return await response.json();
+                            }
+                        })" class="relative">
                             <div @click="open = !open" class="cursor-pointer">
                                 <div
                                     class="flex items-center justify-between bg-white border border-secondary-300 rounded-lg px-4 py-3">
@@ -191,7 +240,8 @@
                                         <path fill-rule="evenodd"
                                             d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                                             clip-rule="evenodd" />
-                                    </svg></div>
+                                    </svg>
+                                </div>
                             </div>
                             <div x-show="open" @click.outside="open = false"
                                 class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg py-1 border border-secondary-200 max-h-60 overflow-auto">
@@ -216,21 +266,61 @@
                                 <div x-show="!isLoading && filteredOptions.length === 0"
                                     class="px-4 py-2 text-center text-secondary-500 text-sm">Tidak ditemukan</div>
                             </div>
-                            {{-- FIX: Mengganti x-model dengan :value --}}
                             <input type="hidden" name="user_id" :value="selectedOption?.id">
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-secondary-700 mb-2">Jenis Kas</label>
-                        <select name="jenis_kas_id" x-model="selectedJenisKasId" @change="updateJumlah()"
-                            class="block w-full px-4 py-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            required>
-                            <option value="" disabled>-- Pilih Jenis Kas --</option>
-                            <template x-for="jk in filteredJenisKas" :key="jk.id">
-                                <option :value="jk.id" x-text="jk.nama_jenis_kas"></option>
-                            </template>
-                        </select>
+                        <div x-data="customSelect({
+                            placeholder: 'Cari jenis kas...',
+                            async fetchOptions(search) {
+                                if (!search) return [];
+                                const response = await fetch('{{ route('jenis_kas.search') }}?q=' + encodeURIComponent(search) + '&tipe=' + tipe);
+                                return await response.json();
+                            },
+                            onSelect: (option) => onJenisKasSelected(option)
+                        })" class="relative">
+                            <div @click="open = !open" class="cursor-pointer">
+                                <div
+                                    class="flex items-center justify-between bg-white border border-secondary-300 rounded-lg px-4 py-3">
+                                    <span x-text="selectedOption ? selectedOption.text : placeholder"
+                                        :class="{ 'text-secondary-400': !selectedOption }"></span><svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-5 w-5 text-secondary-400 transition-transform duration-200"
+                                        :class="{ 'rotate-180': open }" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div x-show="open" @click.outside="open = false"
+                                class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg py-1 border border-secondary-200 max-h-60 overflow-auto">
+                                <div class="px-3 py-2 border-b border-secondary-100 sticky top-0 bg-white"><input
+                                        x-model="search" @input.debounce="updateOptions()" type="text"
+                                        class="w-full px-3 py-2 border border-secondary-200 rounded-md text-sm"
+                                        placeholder="Cari jenis kas..."></div>
+                                <template x-for="(option, index) in filteredOptions" :key="index">
+                                    <div @click="selectOption(option)"
+                                        class="px-4 py-2 hover:bg-primary-50 cursor-pointer flex items-center"
+                                        :class="{ 'bg-primary-100': isSelected(option) }"><span x-text="option.text"
+                                            class="truncate"></span><svg x-show="isSelected(option)"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-5 w-5 ml-auto text-primary-500" viewBox="0 0 20 20"
+                                            fill="currentColor">
+                                            <path fill-rule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clip-rule="evenodd" />
+                                        </svg></div>
+                                </template>
+                                <div x-show="isLoading" class="px-4 py-2 text-center text-secondary-500 text-sm">
+                                    Memuat...</div>
+                                <div x-show="!isLoading && filteredOptions.length === 0"
+                                    class="px-4 py-2 text-center text-secondary-500 text-sm">Tidak ditemukan</div>
+                            </div>
+                            <input type="hidden" name="jenis_kas_id" x-model="selectedJenisKasId">
+                        </div>
                     </div>
 
                     <div x-show="tipe === 'pemasukan' && selectedJenisKas?.tipe_iuran === 'wajib'" x-transition

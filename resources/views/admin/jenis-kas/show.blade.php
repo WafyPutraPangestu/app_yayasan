@@ -10,6 +10,12 @@
 
         <div class="bg-white p-6 rounded-lg shadow-md  mx-auto">
             <div class="space-y-4">
+                {{-- Kode Jenis Kas --}}
+                <div class="flex border-b pb-4">
+                    <div class="w-1/3 text-sm font-bold text-gray-600">Kode Jenis</div>
+                    <div class="w-2/3 text-gray-800 font-semibold">{{ $jenisKa->kode_jenis_kas }}</div>
+                </div>
+
                 {{-- Nama Jenis Kas --}}
                 <div class="flex border-b pb-4">
                     <div class="w-1/3 text-sm font-bold text-gray-600">Nama Jenis</div>

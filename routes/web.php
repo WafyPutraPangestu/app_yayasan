@@ -15,10 +15,8 @@ use Illuminate\Support\Facades\Route;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 
-Route::get('/test-log', function () {
-    Log::debug('Test log berhasil ditulis');
-    return 'Cek storage/logs/laravel.log';
-});
+
+
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/api/chart-data', [HomeController::class, 'getChartData'])->name('chart.data');
 Route::get('/api/detail-data', [HomeController::class, 'getDetailData'])->name('detail.data');
@@ -48,6 +46,9 @@ Route::middleware(['auth'])
     });
 
 Route::middleware(['admin'])->group(function () {
+    // In your web routes (usually routes/web.php)
+    Route::get('/api/jenis-kas/{id}', [KasController::class, 'getJenisKasDetail']);
+    Route::get('/jenis-kas/search', [KasController::class, 'searchJenisKas'])->name('jenis_kas.search');
     Route::get('/manajemen-admin/export', [ManajemenAdminController::class, 'exportAnggotaExcel'])->name('manajemen-admin.export');
     Route::get('/search/users', [KasController::class, 'searchUsers'])->name('users.search');
     Route::get('/kas/report-monthly', [KasController::class, 'monthlyReport'])->name('kas.report-monthly');
@@ -65,6 +66,10 @@ Route::middleware(['admin'])->group(function () {
     Route::get('/dashboard/tahun-tersedia', [DashboardAdminController::class, 'getTahunTersedia'])
         ->name('dashboard.tahun-tersedia');
     Route::post('/admin/dashboard/send-reminder-email', [DashboardAdminController::class, 'sendReminderEmail'])->name('dashboard.send-reminder-email');
+    Route::post('/dashboard/send-bulk-reminders', [DashboardAdminController::class, 'sendBulkReminders'])->name('dashboard.send-bulk-reminders');
+    Route::get('/dashboard/iuran-sukarela-detail', [DashboardAdminController::class, 'getIuranSukarelaDetail'])
+        ->name('dashboard.iuran-sukarela-detail');
+    Route::get('/admin/dashboard/export/all', [App\Http\Controllers\DashboardAdminController::class, 'exportAllDataToExcel'])->name('dashboard.export.all');
 });
 
 

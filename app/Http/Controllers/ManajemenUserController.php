@@ -9,63 +9,81 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ManajemenUserController extends Controller
 {
     /**
      * Menampilkan dashboard untuk user.
-     * Berisi informasi total keuangan dari semua jenis kas secara dinamis.
+     * Berisi informasi total keuangan dari semua jenis kas secara dinamis dan tracking iuran wajib.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
+        // Ambil tahun dari parameter atau gunakan tahun saat ini
+        $selectedYear = $request->get('year', date('Y'));
+
         // Ambil data kas per tahun (versi SQLite)
-        $years = Kas::selectRaw("strftime('%Y', tanggal) as year")
+        $years = Kas::selectRaw("YEAR(tanggal) as year")
             ->groupBy('year')
             ->orderBy('year', 'desc')
-            ->pluck('year');
+            ->pluck('year')
+            ->filter(); // Hilangkan nilai null
 
-        // Ambil tahun saat ini atau tahun terbaru yang ada data
-        $currentYear = $years->first() ?? date('Y');
+        // Pastikan ada data tahun
+        if ($years->isEmpty()) {
+            $years = collect([date('Y')]);
+        }
 
-        // Ambil data kas per bulan untuk tahun terpilih
-        $monthlyData = Kas::selectRaw("strftime('%m', tanggal) as month, SUM(jumlah) as total")
-            ->whereRaw("strftime('%Y', tanggal) = ?", [$currentYear])
+        // Pastikan selected year ada dalam data
+        $currentYear = $years->contains($selectedYear) ? $selectedYear : $years->first();
+
+        // Ambil data kas per bulan untuk tahun terpilih - perbaikan query
+        $monthlyData = Kas::selectRaw("MONTH(tanggal) as month, SUM(jumlah) as total")
+            ->whereRaw("YEAR(tanggal) = ?", [$currentYear])
             ->groupBy('month')
             ->orderBy('month')
-            ->get();
+            ->get()
+            ->keyBy('month'); // Gunakan keyBy untuk akses yang lebih mudah
 
         // Format data untuk chart - pastikan semua bulan ada
         $monthlyLabels = [];
         $monthlyTotals = [];
 
         for ($i = 1; $i <= 12; $i++) {
-            $monthNum = str_pad($i, 2, '0', STR_PAD_LEFT);
             $monthlyLabels[] = date('F', mktime(0, 0, 0, $i, 1));
 
-            // Cari data untuk bulan ini
-            $monthData = $monthlyData->first(function ($item) use ($monthNum) {
-                return $item->month === $monthNum;
-            });
-
-            $monthlyTotals[] = $monthData ? (float)$monthData->total : 0;
+            // Ambil data bulan ini atau 0 jika tidak ada
+            $monthlyTotals[] = isset($monthlyData[$i]) ? (float)$monthlyData[$i]->total : 0;
         }
 
-        // Data per jenis kas
+        // Data per jenis kas - perbaikan query
         $jenisKasData = JenisKas::with(['kas' => function ($query) use ($currentYear) {
-            $query->whereRaw("strftime('%Y', tanggal) = ?", [$currentYear]);
+            $query->whereRaw("YEAR( tanggal) = ?", [$currentYear]);
         }])->get()->map(function ($jenis) {
             return [
                 'nama' => $jenis->nama_jenis_kas,
                 'total' => $jenis->kas->sum('jumlah')
             ];
+        })->filter(function ($item) {
+            return $item['total'] > 0; // Hanya tampilkan yang ada datanya
         });
 
-        // Hitung total pemasukan
+        // Hitung total pemasukan dari array yang sudah disiapkan
         $totalPemasukan = array_sum($monthlyTotals);
 
-        // Ambil nilai bulan berjalan
-        $currentMonthIndex = date('n') - 1; // karena array dimulai dari 0
-        $currentMonthTotal = $monthlyTotals[$currentMonthIndex] ?? 0;
+        // Ambil nilai bulan berjalan (bulan saat ini)
+        $currentMonth = (int)date('n'); // 1-12
+        $currentMonthTotal = $monthlyTotals[$currentMonth - 1] ?? 0; // array dimulai dari 0
+
+        // Debug information - bisa dihapus setelah testing
+        Log::info('Dashboard Debug:', [
+            'selectedYear' => $selectedYear,
+            'currentYear' => $currentYear,
+            'currentMonth' => $currentMonth,
+            'monthlyData' => $monthlyData->toArray(),
+            'totalPemasukan' => $totalPemasukan,
+            'currentMonthTotal' => $currentMonthTotal,
+        ]);
 
         return view('user.dashboard', [
             'years' => $years,
@@ -74,9 +92,10 @@ class ManajemenUserController extends Controller
             'monthlyTotals' => $monthlyTotals,
             'jenisKasData' => $jenisKasData,
             'totalPemasukan' => $totalPemasukan,
-            'currentMonthTotal' => $currentMonthTotal // variabel baru untuk nilai bulan ini
+            'currentMonthTotal' => $currentMonthTotal,
         ]);
     }
+
     private function prepareChartData()
     {
         // Get data for the last 12 months
@@ -114,50 +133,61 @@ class ManajemenUserController extends Controller
             'data' => $data
         ];
     }
+
     /**
-     * Menampilkan riwayat pembayaran iuran user selama 4 tahun terakhir.
+     * Menampilkan riwayat pembayaran iuran wajib per bulan untuk user.
      */
     public function riwayat()
     {
-        // Mendapatkan user yang sedang login
         $user = Auth::user();
+        $jenisKasWajib = JenisKas::where('tipe_iuran', 'wajib')->where('status', 'aktif')->get();
+        $riwayatIuranWajibPerBulan = [];
 
-        // Mengambil ID untuk jenis kas 'Iuran Rutin'
-        $idIuran = JenisKas::all()->value('id');
+        foreach ($jenisKasWajib as $jenisKas) {
+            $target = $jenisKas->target_lunas;
+            $nominalPerBulan = $jenisKas->nominal_wajib ?? 10000;
+            $bulanDibutuhkan = ceil($target / $nominalPerBulan);
+            $pembayaranPertama = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->orderBy('tanggal', 'asc')
+                ->first();
 
-        // Ambil semua transaksi iuran user selama 4 tahun terakhir
-        $pembayaran = Kas::where('user_id', $user->id)
-            ->where('jenis_kas_id', $idIuran)
-            ->where('tanggal', '>=', now()->subYears(4))
-            ->get()
-            ->keyBy(function ($item) {
-                // Buat kunci berdasarkan tahun dan bulan (e.g., "2025-07")
-                return $item->tanggal->format('Y-m');
-            });
+            $startDate = null;
+            if ($pembayaranPertama) {
+                $startDate = Carbon::parse($pembayaranPertama->tanggal)->startOfMonth();
+            }
 
-        // Buat rentang periode 48 bulan dari sekarang ke belakang
-        $startPeriod = now()->subYears(4)->startOfMonth();
-        $endPeriod = now()->endOfMonth();
-        $period = CarbonPeriod::create($startPeriod, '1 month', $endPeriod);
+            $totalBayarUser = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->sum('jumlah');
+            $bulanTercover = floor($totalBayarUser / $nominalPerBulan);
 
-        $riwayatPerTahun = [];
-        // Loop melalui setiap bulan dalam rentang periode
-        foreach ($period as $date) {
-            $tahun = $date->format('Y');
-            $bulan = $date->format('M'); // Jan, Feb, Mar
-            $key = $date->format('Y-m'); // 2025-07
+            $trackingBulanan = [];
+            if ($startDate) {
+                for ($i = 0; $i < $bulanDibutuhkan; $i++) {
+                    $currentMonth = $startDate->copy()->addMonths($i);
+                    $tahun = $currentMonth->year;
+                    $bulan = $currentMonth->month;
+                    $status = $i < $bulanTercover ? 'Lunas' : 'Belum Bayar';
+                    $trackingBulanan[$tahun][$bulan] = $status;
+                }
+            } else {
+                // Jika belum pernah bayar, tandai semua bulan sebagai belum bayar
+                $currentDate = Carbon::now()->startOfMonth();
+                for ($i = 0; $i < $bulanDibutuhkan; $i++) {
+                    $currentMonth = $currentDate->copy()->addMonths($i);
+                    $tahun = $currentMonth->year;
+                    $bulan = $currentMonth->month;
+                    $trackingBulanan[$tahun][$bulan] = 'Belum Bayar';
+                }
+            }
 
-            // Cek apakah ada pembayaran di bulan ini
-            $status = isset($pembayaran[$key]) ? 'Lunas' : 'Belum Bayar';
-
-            // Kelompokkan berdasarkan tahun
-            $riwayatPerTahun[$tahun][$bulan] = $status;
+            $riwayatIuranWajibPerBulan[$jenisKas->nama_jenis_kas] = $trackingBulanan;
         }
 
-        // Urutkan tahun dari yang terbaru ke terlama
-        krsort($riwayatPerTahun);
-
-        return view('user.riwayat', compact('riwayatPerTahun'));
+        return view('user.riwayat', compact('riwayatIuranWajibPerBulan'));
     }
 
     /**
@@ -237,5 +267,10 @@ class ManajemenUserController extends Controller
         }
 
         return response()->json($data);
+    }
+
+    public function iuranWajib()
+    {
+        return redirect()->route('user.riwayat');
     }
 }

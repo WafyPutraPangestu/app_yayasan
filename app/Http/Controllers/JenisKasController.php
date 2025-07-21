@@ -32,13 +32,13 @@ class JenisKasController extends Controller
     public function store(Request $request)
     {
         // Validasi data yang masuk dari form, termasuk 'target_lunas'
-        $validatedData = $request->validate([
+        $validatedData =  $request->validate([
+            'kode_jenis_kas' => 'required|string|max:20|unique:jenis_kas,kode_jenis_kas',
             'nama_jenis_kas' => 'required|string|max:100|unique:jenis_kas,nama_jenis_kas',
-            'tipe_iuran' => ['required', Rule::in(['wajib', 'sukarela'])],
-            'nominal_wajib' => 'required_if:tipe_iuran,wajib|nullable|numeric|min:0',
-            // FIX: Menambahkan validasi untuk target_lunas
-            'target_lunas' => 'nullable|numeric|min:0|gte:nominal_wajib',
             'default_tipe' => ['required', Rule::in(['pemasukan', 'pengeluaran'])],
+            'tipe_iuran' => ['required', Rule::in(['wajib', 'sukarela'])],
+            'nominal_wajib' => 'nullable|numeric|min:0',
+            'target_lunas' => 'nullable|numeric|min:0',
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
         ], [
             // Pesan error kustom dalam Bahasa Indonesia
@@ -87,6 +87,7 @@ class JenisKasController extends Controller
     {
         // Validasi data untuk proses update, termasuk 'target_lunas'
         $validatedData = $request->validate([
+            'kode_jenis_kas' => 'required|string|max:20|unique:jenis_kas,kode_jenis_kas,' . $jenisKa->id,
             'nama_jenis_kas' => ['required', 'string', 'max:100', Rule::unique('jenis_kas')->ignore($jenisKa->id)],
             'tipe_iuran' => ['required', Rule::in(['wajib', 'sukarela'])],
             'nominal_wajib' => 'required_if:tipe_iuran,wajib|nullable|numeric|min:0',

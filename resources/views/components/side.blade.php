@@ -2,7 +2,7 @@
 <aside id="mobile-sidebar"
     class="fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform -translate-x-full transition-transform duration-300 ease-in-out lg:hidden">
     <div class="flex flex-col h-full">
-        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
                     <i class="fas fa-mosque text-white text-lg"></i>
@@ -188,7 +188,8 @@
     class="desktop-sidebar fixed inset-y-0 left-0 z-30 bg-white shadow-lg transition-all duration-300 ease-in-out"
     :class="sidebarOpen ? 'w-64' : 'w-20'">
     <div class="flex flex-col h-full">
-        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div
+            class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white">
             <div class="flex items-center space-x-3" x-show="sidebarOpen">
                 <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
                     <i class="fas fa-mosque text-white text-lg"></i>

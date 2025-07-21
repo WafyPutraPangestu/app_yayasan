@@ -1,6 +1,6 @@
 <x-layout>
     <!-- Hero Section with Grid -->
-    <section class="gradient-primary rounded-t-lg text-white py-20 relative overflow-hidden">
+    <section class="bg-gradient-to-t from-green-300 to-green-700 rounded-t-lg text-white py-20 relative overflow-hidden">
         <!-- Background Animation -->
         <div class="absolute inset-0 opacity-20">
             <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay animate-pulse"></div>
@@ -14,22 +14,19 @@
                 <div class="order-2 lg:order-1">
                     <div class="card-glass p-8 hover-lift">
                         <h3 class="text-xl font-semibold mb-6 text-center text-white">Data Keanggotaan Yayasan</h3>
-                        <!-- Chart Container -->
+                        <!-- Chart Container - Simplified -->
                         <div
                             class="bg-white/10 backdrop-blur-sm rounded-lg p-6 min-h-[300px] flex items-center justify-center border border-white/20">
                             <canvas id="membershipChart" width="400" height="200"></canvas>
                         </div>
-                        <div class="mt-4 grid grid-cols-3 gap-4 text-center">
-                            <div class="bg-white/10 rounded-lg p-3">
-                                <div class="text-2xl font-bold text-accent-200">{{ $stats['tahun_berdiri'] }}</div>
-                                <div class="text-sm text-gray-200">Tahun Berdiri</div>
-                            </div>
-                            <div class="bg-white/10 rounded-lg p-3">
-                                <div class="text-2xl font-bold text-success-300">{{ $stats['total_users'] }}+</div>
+                        <!-- Simplified stats - Only Total and Active Members -->
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-3xl font-bold text-success-300">{{ $stats['total_users'] }}+</div>
                                 <div class="text-sm text-gray-200">Total Anggota</div>
                             </div>
-                            <div class="bg-white/10 rounded-lg p-3">
-                                <div class="text-2xl font-bold text-warning-300">{{ $stats['active_users'] }}+</div>
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-3xl font-bold text-accent-200">{{ $stats['active_users'] }}+</div>
                                 <div class="text-sm text-gray-200">Anggota Aktif</div>
                             </div>
                         </div>
@@ -57,10 +54,6 @@
                             <a href="#sejarah" class="btn-primary hover-lift bg-white text-primary-800 shadow-large">
                                 📖 Sejarah Kami
                             </a>
-                            <a href="#program"
-                                class="btn-outline text-white border-white hover:bg-white hover:text-primary-800">
-                                🎯 Program Kami
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -86,20 +79,7 @@
                     <h3 class="text-3xl font-bold text-accent-600 mb-2">{{ $stats['jamaah_aktif'] }}</h3>
                     <p class="text-gray-600">Anggota Aktif</p>
                 </div>
-                {{-- <div class="text-center">
-                    {{-- <div
-                        class="w-20 h-20 bg-gradient-to-br from-success-400 to-success-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <span class="text-3xl">📚</span>
-                    </div> --}}
 
-                {{-- </div>
-            <div class="text-center"> --}}
-                {{-- <div
-                        class="w-20 h-20 bg-gradient-to-br from-warning-400 to-warning-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <span class="text-3xl">🎓</span>
-                    </div> --}}
-
-                {{-- </div>  --}}
             </div>
         </div>
     </section>
@@ -294,266 +274,24 @@
         </div>
     </section>
 
-    <!-- Program Section (tetap sama) -->
-    <section id="program" class="py-20 gradient-soft">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16">
-                <span
-                    class="inline-block bg-primary-100 text-primary-600 px-4 py-2 rounded-full text-sm font-medium mb-4">
-                    🎯 Program Kami
-                </span>
-                <h2 class="text-4xl font-bold text-secondary-900 mb-4">Program Unggulan</h2>
-                <div class="w-32 h-1 gradient-primary mx-auto mb-6"></div>
-                <p class="text-xl text-gray-600  mx-auto">
-                    Berbagai program yang dirancang untuk mengembangkan potensi dan membangun karakter generasi muda
-                </p>
-            </div>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Program 1 -->
-                <div class="card-modern hover-lift group overflow-hidden">
-                    <div
-                        class="h-56 gradient-primary rounded-t-lg mb-6 flex items-center justify-center relative overflow-hidden">
-                        <span
-                            class="text-6xl group-hover:scale-110 transition-transform duration-300">👨‍👩‍👧‍👦</span>
-                        <div
-                            class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
-                        </div>
-                    </div>
-                    <div class="px-6 pb-6">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="w-3 h-3 bg-primary-500 rounded-full"></span>
-                            <span class="text-sm text-primary-600 font-medium">Program Sosial</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-3 text-primary-800">Program Anak Asuh</h3>
-                        <p class="text-gray-700 mb-4">
-                            Bermula dengan 15 anak yatim/dhuafa dan kini membina {{ $stats['active_users'] }}+ peserta
-                            dari tingkat SD hingga
-                            perguruan tinggi.
-                        </p>
-                        <div class="flex justify-between text-sm text-gray-600">
-                            <span>👥 {{ $stats['active_users'] }}+ Peserta</span>
-                            <span>🎓 SD - Perguruan Tinggi</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Program 2 -->
-                <div class="card-modern hover-lift group overflow-hidden">
-                    <div
-                        class="h-56 gradient-accent rounded-t-lg mb-6 flex items-center justify-center relative overflow-hidden">
-                        <span class="text-6xl group-hover:scale-110 transition-transform duration-300">📖</span>
-                        <div
-                            class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
-                        </div>
-                    </div>
-                    <div class="px-6 pb-6">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="w-3 h-3 bg-accent-500 rounded-full"></span>
-                            <span class="text-sm text-accent-600 font-medium">Program Pendidikan</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-3 text-accent-700">Pelatihan Pengajar Al-Qur'an</h3>
-                        <p class="text-gray-700 mb-4">
-                            Program yang berjalan sejak Desember 2014 untuk meningkatkan kualitas pengajaran Al-Qur'an
-                            di lingkungan masyarakat.
-                        </p>
-                        <div class="flex justify-between text-sm text-gray-600">
-                            <span>📅 Sejak 2014</span>
-                            <span>👨‍🏫 50+ Pengajar</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Program 3 -->
-                <div class="card-modern hover-lift group overflow-hidden">
-                    <div
-                        class="h-56 bg-gradient-to-br from-success-400 to-success-600 rounded-t-lg mb-6 flex items-center justify-center relative overflow-hidden">
-                        <span class="text-6xl group-hover:scale-110 transition-transform duration-300">🤝</span>
-                        <div
-                            class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
-                        </div>
-                    </div>
-                    <div class="px-6 pb-6">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="w-3 h-3 bg-success-500 rounded-full"></span>
-                            <span class="text-sm text-success-600 font-medium">Program Komunitas</span>
-                        </div>
-                        <h3 class="text-xl font-bold mb-3 text-success-700">Kegiatan Sosial</h3>
-                        <p class="text-gray-700 mb-4">
-                            Berbagai program sosial untuk memberdayakan masyarakat sekitar dan memperkuat silaturahmi
-                            antar warga.
-                        </p>
-                        <div class="flex justify-between text-sm text-gray-600">
-                            <span>🌍 Komunitas Luas</span>
-                            <span>💫 Program Berkelanjutan</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center mt-12">
-                <a href="#" class="btn-primary hover-lift shadow-large">
-                    Lihat Semua Program →
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Gallery Section (tetap sama) -->
-    <section class="py-20 bg-white">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16">
-                <span
-                    class="inline-block bg-primary-100 text-primary-600 px-4 py-2 rounded-full text-sm font-medium mb-4">
-                    📸 Dokumentasi
-                </span>
-                <h2 class="text-4xl font-bold text-secondary-900 mb-4">Galeri Kegiatan</h2>
-                <div class="w-32 h-1 gradient-primary mx-auto mb-6"></div>
-                <p class="text-xl text-gray-600  mx-auto">
-                    Dokumentasi berbagai kegiatan dan momen berharga di Yayasan As-Salam Joglo
-                </p>
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div class="aspect-square gradient-primary rounded-xl overflow-hidden hover-lift group cursor-pointer">
-                    <div
-                        class="w-full h-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
-                        <div class="text-center">
-                            <span class="text-4xl mb-2 block">🕌</span>
-                            <span class="text-sm">Kegiatan Masjid</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="aspect-square gradient-accent rounded-xl overflow-hidden hover-lift group cursor-pointer">
-                    <div
-                        class="w-full h-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
-                        <div class="text-center">
-                            <span class="text-4xl mb-2 block">📚</span>
-                            <span class="text-sm">Pembelajaran</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="aspect-square bg-gradient-to-br from-success-400 to-success-600 rounded-xl overflow-hidden hover-lift group cursor-pointer">
-                    <div
-                        class="w-full h-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
-                        <div class="text-center">
-                            <span class="text-4xl mb-2 block">🎉</span>
-                            <span class="text-sm">Acara Besar</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="aspect-square bg-gradient-to-br from-warning-400 to-warning-600 rounded-xl overflow-hidden hover-lift group cursor-pointer">
-                    <div
-                        class="w-full h-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
-                        <div class="text-center">
-                            <span class="text-4xl mb-2 block">🤝</span>
-                            <span class="text-sm">Kegiatan Sosial</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="aspect-square bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl overflow-hidden hover-lift group cursor-pointer">
-                    <div
-                        class="w-full h-full flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="text-center mt-12">
-                <button class="btn-outline hover-glow">Lihat Semua Foto →</button>
-            </div>
-
-        </div>
-
-    </section>
-
-    <section class="py-20 gradient-accent text-white relative overflow-hidden">
-        <div class="absolute inset-0 opacity-10">
-            <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay"></div>
-            <div class="absolute bottom-0 right-0 w-64 h-64 bg-white rounded-full mix-blend-overlay"></div>
-            <div
-                class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-white rounded-full mix-blend-overlay">
-            </div>
-        </div>
-
-        <div class="container mx-auto px-6 text-center relative z-10">
-            <span class="inline-block bg-white/20 text-white px-4 py-2 rounded-full text-sm font-medium mb-6">
-                🤝 Bergabung Bersama Kami
-            </span>
-            <h2 class="text-4xl font-bold mb-6">Mari Berkontribusi untuk Masa Depan yang Lebih Baik</h2>
-            <p class="text-xl  mx-auto mb-12 text-gray-100">
-                Dukung program-program Yayasan As-Salam Joglo untuk kemajuan pendidikan dan sosial
-                masyarakat.
-                Bersama kita wujudkan generasi yang berakhlak mulia dan berprestasi.
-            </p>
-
-            <div class="grid md:grid-cols-3 gap-8 mb-12">
-                <div class="card-glass p-6 hover-lift">
-                    <span class="text-4xl mb-4 block">💰</span>
-                    <h3 class="text-xl font-bold mb-2">Donasi</h3>
-                    <p class="text-gray-200 text-sm">Bantu program pendidikan dan sosial</p>
-                </div>
-                <div class="card-glass p-6 hover-lift">
-                    <span class="text-4xl mb-4 block">🙋‍♂️</span>
-                    <h3 class="text-xl font-bold mb-2">Volunteer</h3>
-                    <p class="text-gray-200 text-sm">Bergabung sebagai relawan aktif</p>
-                </div>
-                <div class="card-glass p-6 hover-lift">
-                    <span class="text-4xl mb-4 block">🤝</span>
-                    <h3 class="text-xl font-bold mb-2">Partnership</h3>
-                    <p class="text-gray-200 text-sm">Kemitraan strategis jangka panjang</p>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row justify-center gap-6">
-                <button class="btn-primary hover-lift bg-white text-primary-800 shadow-large px-8 py-4 text-lg">
-                    💝 Donasi Sekarang
-                </button>
-                <button
-                    class="btn-outline text-white border-white hover:bg-white hover:text-primary-800 px-8 py-4 text-lg">
-                    🙋‍♂️ Menjadi Relawan
-                </button>
-            </div>
-        </div>
-    </section>
-
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Membership Chart
-            // Membership Doughnut Chart
+            // Simplified Membership Chart - Only Total and Active members
             const memberCtx = document.getElementById('membershipChart');
             if (memberCtx) {
                 new Chart(memberCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Total Anggota', 'Anggota Aktif', 'Anggota Pending', 'Anggota Nonaktif',
-                            'Anggota Wafat', 'Mengundurkan Diri'
-                        ],
+                        labels: ['Anggota Aktif', 'Anggota Lainnya'],
                         datasets: [{
                             data: [
-                                {{ $stats['total_users'] }},
                                 {{ $stats['active_users'] }},
-                                {{ $stats['pending_users'] }},
-                                {{ $stats['nonaktif_users'] }},
-                                {{ $stats['wafat_users'] }},
-                                {{ $stats['mengundurkan_diri_users'] }}
+                                {{ $stats['total_users'] - $stats['active_users'] }}
                             ],
                             backgroundColor: [
-                                'rgba(59, 130, 246, 0.8)',
-                                'rgba(16, 185, 129, 0.8)',
-                                'rgba(245, 158, 11, 0.8)',
-                                'rgba(239, 68, 68, 0.8)',
-                                'rgba(107, 114, 128, 0.8)',
-                                'rgba(139, 92, 246, 0.8)'
+                                'rgba(16, 185, 129, 0.8)', // Green for active
+                                'rgba(59, 130, 246, 0.8)' // Blue for others
                             ],
                             borderColor: '#fff',
                             borderWidth: 2
@@ -564,10 +302,10 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'right',
+                                position: 'bottom',
                                 labels: {
                                     boxWidth: 12,
-                                    padding: 20,
+                                    padding: 15,
                                     font: {
                                         size: 12
                                     }

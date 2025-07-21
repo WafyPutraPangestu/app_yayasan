@@ -90,6 +90,12 @@
         #3b82f6 50%,
         #0ea5e9 100%
     );
+    --gradiant-hijau: linear-gradient(
+        135deg,
+        #166534 0%,
+        /* hijau tua */ #22c55e 50%,
+        /* hijau sedang */ #4ade80 100% /* hijau terang */
+    );
     --gradient-secondary: linear-gradient(
         135deg,
         #0f172a 0%,

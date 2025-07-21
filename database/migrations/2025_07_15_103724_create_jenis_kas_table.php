@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('jenis_kas', function (Blueprint $table) {
             $table->id();
+            $table->string('kode_jenis_kas', 20)->unique();
             $table->string('nama_jenis_kas', 100)->unique();
             $table->decimal('target_lunas', 12, 2)->nullable()->comment('Target pelunasan penuh, misal 2500000');
             $table->enum('tipe_iuran', ['wajib', 'sukarela'])->default('sukarela');

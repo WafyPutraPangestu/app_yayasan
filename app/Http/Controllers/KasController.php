@@ -92,7 +92,54 @@ class KasController extends Controller
 
     /**
      * Menyediakan data user (anggota) untuk form select dinamis via API.
-     */
+     */ public function searchJenisKas(Request $request)
+    {
+        $search = $request->input('q');
+        $tipe = $request->input('tipe');
+
+        if (empty($search)) {
+            return response()->json([]);
+        }
+
+        $query = JenisKas::where('status', 'aktif')
+            ->where('nama_jenis_kas', 'LIKE', "%{$search}%");
+
+        if ($tipe && in_array($tipe, ['pemasukan', 'pengeluaran'])) {
+            $query->where('default_tipe', $tipe);
+        }
+
+        $jenisKas = $query->limit(10)->get([
+            'id',
+            'nama_jenis_kas',
+            'tipe_iuran',
+            'nominal_wajib',
+            'target_lunas',
+            'default_tipe'
+        ]);
+
+        $formattedJenisKas = $jenisKas->map(function ($jk) {
+            return [
+                'id' => $jk->id,
+                'text' => $jk->nama_jenis_kas,
+                'tipe_iuran' => $jk->tipe_iuran,
+                'nominal_wajib' => $jk->nominal_wajib,
+                'target_lunas' => $jk->target_lunas,
+                'default_tipe' => $jk->default_tipe
+            ];
+        });
+
+        return response()->json($formattedJenisKas);
+    }
+    public function getJenisKasDetail($id)
+    {
+        $jenisKas = JenisKas::find($id);
+
+        if (!$jenisKas) {
+            return response()->json(['error' => 'Jenis kas tidak ditemukan'], 404);
+        }
+
+        return response()->json($jenisKas);
+    }
     public function searchUsers(Request $request)
     {
         $search = $request->input('q');
@@ -252,6 +299,19 @@ class KasController extends Controller
             'bulan_iuran' => 'required|numeric|between:1,12',
             'tahun_iuran' => 'required|numeric|digits:4',
         ]);
+
+        $wajibKasProgress = WajibKasProgress::where('user_id', $request->user_id)
+            ->where('jenis_kas_id', $jenisKas->id)
+            ->first();
+
+        $totalTerbayarSaatIni = $wajibKasProgress ? $wajibKasProgress->total_terbayar : 0;
+        $jumlahBayarBaru = $request->jumlah;
+        $totalBayarSetelahIni = $totalTerbayarSaatIni + $jumlahBayarBaru;
+        $sisaBayar = $jenisKas->target_lunas - $totalTerbayarSaatIni;
+
+        if ($jenisKas->target_lunas && $totalBayarSetelahIni > $jenisKas->target_lunas) {
+            throw new \Exception('Pembayaran melebihi target lunas untuk iuran wajib ' . $jenisKas->nama_jenis_kas . '. Sisa yang perlu dibayar adalah Rp ' . number_format($sisaBayar, 0, ',', '.') . '.');
+        }
 
         Kas::create([
             'tipe' => 'pemasukan',

@@ -13,7 +13,7 @@ class InvitationController extends Controller
     public function showPasswordForm(User $user)
     {
         // Cek dulu apakah user masih pending
-        if ($user->status !== 'pending' || $user->password !== null) {
+        if ($user->status !== 'Pending' || $user->password !== null) {
             return redirect('/login')->with('error', 'Link undangan tidak valid atau sudah digunakan.');
         }
         return view('auth.create-password', ['user' => $user]);
@@ -31,7 +31,7 @@ class InvitationController extends Controller
         $user->update([
             'password' => Hash::make($request->password),
             'email_verified_at' => now(), // Tandai email sebagai terverifikasi
-            'status' => 'aktif', // <-- PENTING: Ubah status menjadi aktif
+            'status' => 'Aktif', // <-- PENTING: Ubah status menjadi aktif
         ]);
 
         // 3. Login-kan user secara otomatis

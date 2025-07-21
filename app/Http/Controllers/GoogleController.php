@@ -22,7 +22,7 @@ class GoogleController extends Controller
         ]);
 
         if (Auth::attempt($request->only('email', 'password'))) {
-            return redirect()->intended('home');
+            return redirect()->intended('/');
         }
 
         return back()->withErrors([
@@ -39,30 +39,21 @@ class GoogleController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-
-            // Cari user berdasarkan google_id
             $user = User::where('google_id', $googleUser->id)->first();
-
             if ($user) {
-                // Jika user sudah ada, langsung login
                 Auth::login($user);
-                return redirect()->intended('/home');
+                return redirect()->intended('/');
             } else {
-                // Cek apakah user dengan email ini sudah terdaftar oleh admin
                 $user = User::where('email', $googleUser->email)->first();
-
                 if ($user) {
-                    // Jika email ada (didaftarkan admin), sambungkan google_id dan login
                     $user->update(['google_id' => $googleUser->id, 'avatar' => $googleUser->avatar]);
                     Auth::login($user);
-                    return redirect()->intended('/home');
+                    return redirect()->intended('/');
                 } else {
-
                     return redirect('/login')->with('error', 'Email Anda belum terdaftar oleh Admin. Silakan hubungi pengurus yayasan.');
                 }
             }
         } catch (\Throwable $th) {
-
             return redirect('/login')->with('error', 'Terjadi kesalahan saat login dengan Google.');
         }
     }

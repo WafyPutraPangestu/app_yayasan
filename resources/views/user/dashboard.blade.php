@@ -1,8 +1,7 @@
 <x-layout>
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-primary-800 dark:text-primary-100 mb-8">Dashboard Keuangan Masjid</h1>
+        <h1 class="text-3xl font-bold text-black mb-8">Dashboard Keuangan Masjid</h1>
 
-        <!-- Year Selector -->
         <div class="bg-white dark:bg-secondary-800 rounded-lg shadow-primary p-6 mb-8">
             <h2 class="text-xl font-semibold text-secondary-800 dark:text-secondary-100 mb-4">Pilih Tahun</h2>
             <div class="flex flex-wrap gap-2">
@@ -15,28 +14,26 @@
             </div>
         </div>
 
-        <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-gradient-primary text-white rounded-lg shadow-secondary p-6 hover-lift">
+            <div class="bg-gradient-primary text-black rounded-lg shadow-secondary p-6 hover-lift">
                 <h3 class="text-lg font-medium mb-2">Total Pemasukan</h3>
                 <p class="text-3xl font-bold">Rp {{ number_format($totalPemasukan, 0, ',', '.') }}</p>
                 <p class="text-sm opacity-90 mt-1">Tahun {{ $currentYear }}</p>
             </div>
 
-            <div class="bg-gradient-accent text-white rounded-lg shadow-secondary p-6 hover-lift">
+            <div class="bg-gradient-accent text-black rounded-lg shadow-secondary p-6 hover-lift">
                 <h3 class="text-lg font-medium mb-2">Jenis Kas</h3>
                 <p class="text-3xl font-bold">{{ $jenisKasData->count() }}</p>
                 <p class="text-sm opacity-90 mt-1">Kategori Pemasukan</p>
             </div>
             {{-- @dd(number_format(end($monthlyTotals), 0, ',', '.')) --}}
-            <div class="bg-gradient-secondary text-white rounded-lg shadow-secondary p-6 hover-lift">
+            <div class="bg-gradient-secondary text-black rounded-lg shadow-secondary p-6 hover-lift">
                 <h3 class="text-lg font-medium mb-2">Bulan Ini</h3>
                 <p class="text-3xl font-bold">Rp {{ number_format($currentMonthTotal, 0, ',', '.') }}</p>
                 <p class="text-sm opacity-90 mt-1">{{ date('F Y') }}</p>
             </div>
         </div>
 
-        <!-- Monthly Chart -->
         <div class="bg-white dark:bg-secondary-800 rounded-lg shadow-primary p-6 mb-8">
             <h2 class="text-xl font-semibold text-secondary-800 dark:text-secondary-100 mb-4">Pemasukan Bulanan Tahun
                 {{ $currentYear }}</h2>
@@ -45,7 +42,6 @@
             </div>
         </div>
 
-        <!-- Jenis Kas Chart -->
         <div class="bg-white dark:bg-secondary-800 rounded-lg shadow-primary p-6">
             <h2 class="text-xl font-semibold text-secondary-800 dark:text-secondary-100 mb-4">Pemasukan per Jenis Kas
                 Tahun {{ $currentYear }}</h2>
