@@ -718,53 +718,88 @@ class DashboardAdminController extends Controller
         // Ambil tahun yang dipilih, default tahun sekarang
         $tahunDipilih = $request->get('tahun', Carbon::now()->year);
 
-        // ========== STATISTIK UTAMA ==========
-        $totalPemasukan = Kas::where('tipe', 'pemasukan')->sum('jumlah');
-        $totalPengeluaran = Kas::where('tipe', 'pengeluaran')->sum('jumlah');
-        $saldo = $totalPemasukan - $totalPengeluaran;
+        // ========== STATISTIK UTAMA KESELURUHAN ==========
+        $totalPemasukanKeseluruhan = Kas::where('tipe', 'pemasukan')->sum('jumlah');
+        $totalPengeluaranKeseluruhan = Kas::where('tipe', 'pengeluaran')->sum('jumlah');
+        $saldoKeseluruhan = $totalPemasukanKeseluruhan - $totalPengeluaranKeseluruhan;
         $totalAnggota = User::where('role', 'user')->count();
 
-        // ========== IURAN SUKARELA BULAN INI ==========
-        $bulanIni = Carbon::now();
-        $jenisKasSukarela = JenisKas::where('tipe_iuran', 'sukarela')
-            ->where('status', 'aktif')
-            ->pluck('id');
-
-        $iuranSukarelaBulanIni = collect();
-        if ($jenisKasSukarela->isNotEmpty()) {
-            $iuranSukarelaBulanIni = Kas::where('tipe', 'pemasukan')
-                ->whereIn('jenis_kas_id', $jenisKasSukarela)
-                ->whereYear('tanggal', $bulanIni->year)
-                ->whereMonth('tanggal', $bulanIni->month)
-                ->with(['user', 'jenisKas'])
-                ->get();
-        }
-
-        // ========== IURAN BULAN INI (YANG BELUM BAYAR) ==========
-        $bulanIni = Carbon::now();
-        $jenisKasWajib = JenisKas::where('tipe_iuran', 'wajib')->where('status', 'aktif')->get();
-        $userBelumBayarBulanIni = collect();
-        if ($jenisKasWajib->isNotEmpty()) {
-            $userSudahBayarBulanIni = Kas::where('tipe', 'pemasukan')
-                ->whereIn('jenis_kas_id', $jenisKasWajib->pluck('id'))
-                ->whereYear('tanggal', $bulanIni->year)
-                ->whereMonth('tanggal', $bulanIni->month)
-                ->with('user')
-                ->get()
-                ->unique('user_id');
-
-            $semuaUser = User::where('role', 'user')->get();
-            $userBelumBayarBulanIni = $semuaUser->filter(function ($user) use ($userSudahBayarBulanIni) {
-                return !$userSudahBayarBulanIni->pluck('user_id')->contains($user->id);
+        // ========== STATISTIK UTAMA BULANAN ==========
+        $statistikBulanan = Kas::selectRaw('YEAR(tanggal) as tahun, MONTH(tanggal) as bulan, tipe, SUM(jumlah) as total')
+            ->whereYear('tanggal', $tahunDipilih)
+            ->groupBy('tahun', 'bulan', 'tipe')
+            ->orderBy('tahun')
+            ->orderBy('bulan')
+            ->get()
+            ->groupBy(['tahun', 'bulan'])
+            ->map(function ($bulanan) {
+                $pemasukan = $bulanan->where('tipe', 'pemasukan')->sum('total') ?? 0;
+                $pengeluaran = $bulanan->where('tipe', 'pengeluaran')->sum('total') ?? 0;
+                return [
+                    'pemasukan' => $pemasukan,
+                    'pengeluaran' => $pengeluaran,
+                    'saldo' => $pemasukan - $pengeluaran,
+                ];
             });
+
+        // ========== IURAN SUKARELA BULANAN ==========
+        $iuranSukarelaBulanan = Kas::where('tipe', 'pemasukan')
+            ->whereIn('jenis_kas_id', JenisKas::where('tipe_iuran', 'sukarela')->where('status', 'aktif')->pluck('id'))
+            ->whereYear('tanggal', $tahunDipilih)
+            ->with(['user', 'jenisKas'])
+            ->orderBy('tanggal')
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->tanggal->format('Y-m');
+            });
+
+        // ========== IURAN WAJIB BULANAN (YANG SUDAH BAYAR) ==========
+        $iuranWajibSudahBayarBulanan = Kas::where('tipe', 'pemasukan')
+            ->whereIn('jenis_kas_id', JenisKas::where('tipe_iuran', 'wajib')->where('status', 'aktif')->pluck('id'))
+            ->whereYear('tanggal', $tahunDipilih)
+            ->with('user')
+            ->orderBy('tanggal')
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->tanggal->format('Y-m');
+            });
+
+        // ========== DAFTAR ANGGOTA YANG BELUM BAYAR IURAN WAJIB BULANAN ==========
+        $jenisKasWajibAktif = JenisKas::where('tipe_iuran', 'wajib')->where('status', 'aktif')->get();
+        $anggotaBelumBayarBulanan = [];
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $tanggalAwalBulan = Carbon::create($tahunDipilih, $bulan, 1)->startOfMonth();
+            $tanggalAkhirBulan = Carbon::create($tahunDipilih, $bulan, 1)->endOfMonth();
+            $anggotaSudahBayarBulanIni = Kas::where('tipe', 'pemasukan')
+                ->whereIn('jenis_kas_id', $jenisKasWajibAktif->pluck('id'))
+                ->whereYear('tanggal', $tanggalAwalBulan->year)
+                ->whereMonth('tanggal', $tanggalAwalBulan->month)
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            $semuaAnggota = User::where('role', 'user')->pluck('id')->toArray();
+            $anggotaBelumBayar = array_diff($semuaAnggota, $anggotaSudahBayarBulanIni);
+            $dataAnggota = User::whereIn('id', $anggotaBelumBayar)->get();
+
+            if ($dataAnggota->isNotEmpty()) {
+                $anggotaBelumBayarBulanan[$tanggalAwalBulan->format('Y-m')] = $dataAnggota->map(function ($user) {
+                    return [
+                        'ID Anggota' => $user->id_anggota,
+                        'Nama Anggota' => $user->name,
+                        'Email Anggota' => $user->email,
+                        'Nomor HP' => $user->no_hp,
+                    ];
+                })->toArray();
+            }
         }
 
-        // ========== TRACKING IURAN WAJIB (PROGRESS PELUNASAN) ==========
-        $trackingWajib = [];
-        foreach ($jenisKasWajib as $jenisKas) {
+
+        // ========== TRACKING IURAN WAJIB (PROGRESS PELUNASAN) PER JENIS KAS ==========
+        $trackingWajibPerJenis = [];
+        foreach ($jenisKasWajibAktif as $jenisKas) {
             $semuaUser = User::where('role', 'user')->get();
             $targetPerUser = $jenisKas->target_lunas;
-
             $progressDetail = [];
             foreach ($semuaUser as $user) {
                 $totalBayarUser = Kas::where('user_id', $user->id)
@@ -779,90 +814,137 @@ class DashboardAdminController extends Controller
                     'status' => $status,
                     'persentase' => round($persentase, 2),
                     'sisa_bayar' => max(0, $targetPerUser - $totalBayarUser),
-                    'target_user' => $targetPerUser
+                    'target_user' => $targetPerUser,
                 ];
             }
             usort($progressDetail, function ($a, $b) {
                 return $b['persentase'] <=> $a['persentase'];
             });
-            $trackingWajib[$jenisKas->nama_jenis_kas] = $progressDetail;
+            $trackingWajibPerJenis[$jenisKas->nama_jenis_kas] = $progressDetail;
         }
 
-        // ========== PERFORMA ANGGOTA (BULAN INI) ==========
-        $performaUser = User::where('role', 'user')->get()->map(function ($user) use ($jenisKasWajib) {
-            $tepatWaktu = 0;
-            $terlambat = 0;
-            $bulanIni = Carbon::now();
-            foreach ($jenisKasWajib as $jenisKas) {
-                $pembayaran = Kas::where('user_id', $user->id)
-                    ->where('jenis_kas_id', $jenisKas->id)
-                    ->where('tipe', 'pemasukan')
-                    ->whereYear('tanggal', $bulanIni->year)
-                    ->whereMonth('tanggal', $bulanIni->month)
-                    ->get();
-                foreach ($pembayaran as $bayar) {
-                    if ($bayar->tanggal->day <= 15) {
-                        $tepatWaktu++;
-                    } else {
-                        $terlambat++;
+        // ========== PERFORMA ANGGOTA BULANAN (PERSENTASE KETEPATAN WAKTU) ==========
+        $performaAnggotaBulanan = [];
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $tanggalAwalBulan = Carbon::create($tahunDipilih, $bulan, 1)->startOfMonth();
+            $tanggalAkhirBulan = Carbon::create($tahunDipilih, $bulan, 1)->endOfMonth();
+            $performaUserBulanIni = User::where('role', 'user')->get()->map(function ($user) use ($jenisKasWajibAktif, $tanggalAwalBulan, $tanggalAkhirBulan) {
+                $tepatWaktu = 0;
+                $terlambat = 0;
+                foreach ($jenisKasWajibAktif as $jenisKas) {
+                    $pembayaran = Kas::where('user_id', $user->id)
+                        ->where('jenis_kas_id', $jenisKas->id)
+                        ->where('tipe', 'pemasukan')
+                        ->whereBetween('tanggal', [$tanggalAwalBulan, $tanggalAkhirBulan])
+                        ->get();
+                    foreach ($pembayaran as $bayar) {
+                        if ($bayar->tanggal->day <= 15) {
+                            $tepatWaktu++;
+                        } else {
+                            $terlambat++;
+                        }
                     }
                 }
-            }
-            $totalPembayaran = $tepatWaktu + $terlambat;
-            $persentaseTepatWaktu = $totalPembayaran > 0 ? ($tepatWaktu / $totalPembayaran) * 100 : 0;
-            return [
-                'user' => $user,
-                'tepat_waktu' => $tepatWaktu,
-                'terlambat' => $terlambat,
-                'persentase_tepat_waktu' => $persentaseTepatWaktu
-            ];
-        })->sortByDesc('persentase_tepat_waktu')->values()->toArray();
+                $totalPembayaran = $tepatWaktu + $terlambat;
+                $persentaseTepatWaktu = $totalPembayaran > 0 ? ($tepatWaktu / $totalPembayaran) * 100 : 0;
+                return [
+                    'user' => $user,
+                    'tepat_waktu' => $tepatWaktu,
+                    'terlambat' => $terlambat,
+                    'persentase_tepat_waktu' => $persentaseTepatWaktu,
+                ];
+            })->sortByDesc('persentase_tepat_waktu')->values()->toArray();
+            $performaAnggotaBulanan[$tanggalAwalBulan->format('Y-m')] = $performaUserBulanIni;
+        }
 
-        // ========== PEMASUKAN & PENGELUARAN PER JENIS KAS ==========
-        $pemasukankuanganPerJenis = JenisKas::with(['kas' => function ($query) {
-            $query->where('tipe', 'pemasukan');
-        }])->get()->map(function ($jenisKas) {
-            return [
-                'nama' => $jenisKas->nama_jenis_kas,
-                'total' => $jenisKas->kas->sum('jumlah')
-            ];
-        })->toArray();
-
-        $pengeluarankuanganPerJenis = JenisKas::with(['kas' => function ($query) {
-            $query->where('tipe', 'pengeluaran');
+        // ========== PEMASUKAN PER JENIS KAS BULANAN ==========
+        $pemasukanPerJenisKasBulanan = JenisKas::with(['kas' => function ($query) use ($tahunDipilih) {
+            $query->where('tipe', 'pemasukan')
+                ->whereYear('tanggal', $tahunDipilih);
         }])->get()->map(function ($jenisKas) {
             return [
                 'nama' => $jenisKas->nama_jenis_kas,
                 'total' => $jenisKas->kas->sum('jumlah'),
+                'detail_bulanan' => $jenisKas->kas()->get()->groupBy(fn($item) => Carbon::parse($item->tanggal)->format('Y-m'))
+                    ->map(fn($items) => $items->sum('jumlah'))
+                    ->toArray(),
+            ];
+        })->toArray();
+
+        // ========== PENGELUARAN PER JENIS KAS BULANAN ==========
+        $pengeluaranPerJenisKasBulanan = JenisKas::with(['kas' => function ($query) use ($tahunDipilih) {
+            $query->where('tipe', 'pengeluaran')
+                ->whereYear('tanggal', $tahunDipilih);
+        }])->get()->map(function ($jenisKas) {
+            return [
+                'nama' => $jenisKas->nama_jenis_kas,
+                'total' => $jenisKas->kas->sum('jumlah'),
+                'detail_bulanan' => $jenisKas->kas()->get()->groupBy(fn($item) => Carbon::parse($item->tanggal)->format('Y-m'))
+                    ->map(fn($items) => $items->sum('jumlah'))
+                    ->toArray(),
             ];
         })->toArray();
 
         return Excel::download(new AllDashboardDataExport([
-            'Statistik Utama' => [
-                ['Total Pemasukan', $totalPemasukan],
-                ['Total Pengeluaran', $totalPengeluaran],
-                ['Saldo Akhir', $saldo],
+            'Statistik Utama Keseluruhan' => [
+                ['Total Pemasukan', $totalPemasukanKeseluruhan],
+                ['Total Pengeluaran', $totalPengeluaranKeseluruhan],
+                ['Saldo Akhir', $saldoKeseluruhan],
                 ['Total Anggota', $totalAnggota],
             ],
-            'Iuran Sukarela Bulan Ini' => $iuranSukarelaBulanIni->map(function ($item) {
+            'Statistik Utama Bulanan' => collect($statistikBulanan)->map(function ($item, $tahunBulan) {
+                try {
+                    if (strpos($tahunBulan, '-') !== false) {
+                        $date = Carbon::createFromFormat('Y-m', $tahunBulan);
+                    } elseif (preg_match('/\d{4}\.\d{2}/', $tahunBulan)) {
+                        $date = Carbon::createFromFormat('Y.m', $tahunBulan);
+                    } else {
+                        $date = Carbon::createFromFormat('Y.n', $tahunBulan);
+                    }
+
+                    $bulanFormatted = $date->translatedFormat('F Y');
+                } catch (\Exception $e) {
+                    $bulanFormatted = $tahunBulan; // fallback kalau gagal parse
+                }
+
                 return [
-                    'Nama Anggota' => $item->user->name ?? 'Anonim',
-                    'Email Anggota' => $item->user->email ?? '-',
-                    'Jenis Kas' => $item->jenisKas->nama_jenis_kas ?? '-',
-                    'Jumlah' => $item->jumlah,
-                    'Tanggal' => $item->tanggal->format('d M Y'),
-                    'Keterangan' => $item->keterangan,
+                    'Bulan' => $bulanFormatted,
+                    'Total Pemasukan' => $item['pemasukan'],
+                    'Total Pengeluaran' => $item['pengeluaran'],
+                    'Saldo' => $item['saldo'],
                 ];
             })->toArray(),
-            'Belum Bayar Iuran Wajib Bulan Ini' => $userBelumBayarBulanIni->map(function ($user) {
-                return [
-                    'ID Anggota' => $user->id_anggota,
-                    'Nama Anggota' => $user->name,
-                    'Email Anggota' => $user->email,
-                    'Nomor HP' => $user->no_hp,
-                ];
+
+            'Iuran Sukarela Bulanan' => collect($iuranSukarelaBulanan)->flatMap(function ($items, $bulanTahun) {
+                return $items->map(function ($item) use ($bulanTahun) {
+                    return [
+                        'Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y'),
+                        'Nama Anggota' => $item->user->name ?? 'Anonim',
+                        'Email Anggota' => $item->user->email ?? '-',
+                        'Jenis Kas' => $item->jenisKas->nama_jenis_kas ?? '-',
+                        'Jumlah' => $item->jumlah,
+                        'Tanggal' => $item->tanggal->format('d M Y'),
+                        'Keterangan' => $item->keterangan,
+                    ];
+                });
             })->toArray(),
-            'Progress Iuran Wajib' => collect($trackingWajib)->flatMap(function ($progressDetails, $namaKas) {
+            'Iuran Wajib Dibayar Bulanan' => collect($iuranWajibSudahBayarBulanan)->flatMap(function ($items, $bulanTahun) {
+                return $items->map(function ($item) use ($bulanTahun) {
+                    return [
+                        'Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y'),
+                        'Nama Anggota' => $item->user->name ?? 'Anonim',
+                        'Email Anggota' => $item->user->email ?? '-',
+                        'Jumlah' => $item->jumlah,
+                        'Tanggal' => $item->tanggal->format('d M Y'),
+                    ];
+                });
+            })->toArray(),
+            'Anggota Belum Bayar Iuran Wajib Bulanan' => collect($anggotaBelumBayarBulanan)->flatMap(function ($users, $bulanTahun) {
+                return collect($users)->map(function ($user) use ($bulanTahun) {
+                    return array_merge(['Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y')], $user);
+                });
+            })->toArray(),
+            'Progress Iuran Wajib' => collect($trackingWajibPerJenis)->flatMap(function ($progressDetails, $namaKas) {
                 return collect($progressDetails)->map(function ($detail) use ($namaKas) {
                     return [
                         'Jenis Kas' => $namaKas,
@@ -876,17 +958,40 @@ class DashboardAdminController extends Controller
                     ];
                 });
             })->toArray(),
-            'Performa Anggota Bulan Ini' => collect($performaUser)->map(function ($item) {
-                return [
-                    'ID Anggota' => $item['user']->id_anggota,
-                    'Nama Anggota' => $item['user']->name,
-                    'Tepat Waktu' => $item['tepat_waktu'],
-                    'Terlambat' => $item['terlambat'],
-                    'Persentase Tepat Waktu' => round($item['persentase_tepat_waktu']) . '%',
-                ];
+            'Performa Anggota Bulanan' => collect($performaAnggotaBulanan)->flatMap(function ($items, $bulanTahun) {
+                return collect($items)->map(function ($item) use ($bulanTahun) {
+                    return [
+                        'Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y'),
+                        'ID Anggota' => $item['user']->id_anggota,
+                        'Nama Anggota' => $item['user']->name,
+                        'Tepat Waktu' => $item['tepat_waktu'],
+                        'Terlambat' => $item['terlambat'],
+                        'Persentase Tepat Waktu' => round($item['persentase_tepat_waktu']) . '%',
+                    ];
+                });
             })->toArray(),
-            'Pemasukan per Jenis Kas' => $pemasukankuanganPerJenis,
-            'Pengeluaran per Jenis Kas' => $pengeluarankuanganPerJenis,
+            'Pemasukan per Jenis Kas Bulanan' => collect($pemasukanPerJenisKasBulanan)->flatMap(function ($jenisKasData) {
+                $namaJenisKas = $jenisKasData['nama'];
+                $detailBulanan = $jenisKasData['detail_bulanan'];
+                return collect($detailBulanan)->map(function ($total, $bulanTahun) use ($namaJenisKas) {
+                    return [
+                        'Jenis Kas' => $namaJenisKas,
+                        'Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y'),
+                        'Total' => $total,
+                    ];
+                })->prepend(['Jenis Kas', 'Bulan', 'Total']); // Tambahkan header
+            })->toArray(),
+            'Pengeluaran per Jenis Kas Bulanan' => collect($pengeluaranPerJenisKasBulanan)->flatMap(function ($jenisKasData) {
+                $namaJenisKas = $jenisKasData['nama'];
+                $detailBulanan = $jenisKasData['detail_bulanan'];
+                return collect($detailBulanan)->map(function ($total, $bulanTahun) use ($namaJenisKas) {
+                    return [
+                        'Jenis Kas' => $namaJenisKas,
+                        'Bulan' => Carbon::createFromFormat('Y-m', $bulanTahun)->translatedFormat('F Y'),
+                        'Total' => $total,
+                    ];
+                })->prepend(['Jenis Kas', 'Bulan', 'Total']); // Tambahkan header
+            })->toArray(),
         ]), 'dashboard_data.xlsx');
     }
 }
