@@ -730,7 +730,7 @@ class DashboardAdminController extends Controller
             ->where('status', 'aktif')
             ->pluck('id');
 
-        $iuranSukarelaBulanIni = [];
+        $iuranSukarelaBulanIni = collect();
         if ($jenisKasSukarela->isNotEmpty()) {
             $iuranSukarelaBulanIni = Kas::where('tipe', 'pemasukan')
                 ->whereIn('jenis_kas_id', $jenisKasSukarela)
