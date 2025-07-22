@@ -164,7 +164,7 @@
         </button>
         <div class="ml-4 flex items-center">
             <div class="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-                <i class="fas fa-mosque text-white text-sm"></i>
+                <img src="{{ asset('images/home/logo_yayasan.png') }}" alt="Logo Yayasan">
             </div>
             <span class="ml-2 font-semibold text-gray-800">Yayasan</span>
         </div>

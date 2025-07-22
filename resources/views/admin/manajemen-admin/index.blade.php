@@ -17,8 +17,8 @@
                     </svg>
                     Tambah User Baru
                 </a>
-                <a href="{{ route('manajemen-admin.export') }}" class="btn-success inline-flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ route('manajemen-admin.export') }}" class="btn-primary inline-flex items-center">
+                    <svg class="w-5 h-5 mr-2 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                     </svg>

@@ -12,6 +12,7 @@ use App\Models\Kas;
 use App\Models\JenisKas;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
@@ -622,97 +623,216 @@ class DashboardAdminController extends Controller
     }
     public function sendBulkReminders(Request $request)
     {
-        $bulanIni = Carbon::now()->month;
-        $tahunIni = Carbon::now()->year;
-        $jenisKasId = $request->get('jenis_kas_id');
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun');
+        $jenisKasId = $request->input('jenis_kas_id');
 
-        $mandatoryJenisKases = JenisKas::where('tipe_iuran', 'wajib')
-            ->where('status', 'aktif')
-            ->get();
-
-        $belumBayarUsers = collect();
-
-        if ($jenisKasId) {
-            // Kirim pengingat untuk jenis kas spesifik
-            $jenisKasWajib = $mandatoryJenisKases->where('id', $jenisKasId)->first();
-
-            if ($jenisKasWajib) {
-                $userSudahBayar = Kas::where('jenis_kas_id', $jenisKasWajib->id)
-                    ->where('tipe', 'pemasukan')
-                    ->whereYear('tanggal', $tahunIni)
-                    ->whereMonth('tanggal', $bulanIni)
-                    ->pluck('user_id');
-
-                $belumBayarUsers = User::where('role', 'user')
-                    ->whereNotIn('id', $userSudahBayar)
-                    ->get();
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Jenis Kas wajib tidak ditemukan.',
-                ]);
-            }
-        } else {
-            // Kirim pengingat ke semua anggota yang belum membayar *seluruh* iuran wajib bulan ini
-            $semuaUser = User::where('role', 'user')->get();
-            foreach ($semuaUser as $user) {
-                $semuaSudahBayar = true;
-                Log::info("Memeriksa status pembayaran user: {$user->name} (ID: {$user->id})");
-                foreach ($mandatoryJenisKases as $jenisKas) {
-                    $sudahBayar = Kas::where('user_id', $user->id)
-                        ->where('jenis_kas_id', $jenisKas->id)
-                        ->where('tipe', 'pemasukan')
-                        ->whereYear('tanggal', $tahunIni)
-                        ->whereMonth('tanggal', $bulanIni)
-                        ->exists();
-
-                    Log::info("  Jenis Kas: {$jenisKas->nama_jenis_kas} (ID: {$jenisKas->id}), Sudah Bayar: " . ($sudahBayar ? 'Ya' : 'Tidak'));
-
-                    if (!$sudahBayar) {
-                        $semuaSudahBayar = false;
-                        break; // Jika belum bayar satu saja, anggap belum bayar semua
-                    }
-                }
-                if (!$semuaSudahBayar) {
-                    Log::warning("User {$user->name} (ID: {$user->id}) dianggap BELUM membayar semua iuran wajib.");
-                    $belumBayarUsers->push($user);
-                } else {
-                    Log::info("User {$user->name} (ID: {$user->id}) dianggap SUDAH membayar semua iuran wajib.");
-                }
-            }
-            $belumBayarUsers = $belumBayarUsers->unique('id');
+        // Validasi input
+        if (!$bulan || !$tahun || !$jenisKasId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter bulan, tahun, dan jenis kas harus disertakan.',
+            ], 400);
         }
+
+        $jenisKas = JenisKas::find($jenisKasId);
+        if (!$jenisKas || $jenisKas->tipe_iuran !== 'wajib') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jenis kas wajib tidak ditemukan atau tidak aktif.',
+            ], 404);
+        }
+
+        // ========== LOGIKA BARU UNTUK MENCARI USER BELUM BAYAR ==========
+        $target = $jenisKas->target_lunas;
+        $nominalPerBulan = $jenisKas->nominal_wajib ?? 10000;
+        $targetDate = Carbon::create($tahun, $bulan, 1)->startOfMonth();
+
+        $semuaUser = User::where('role', 'user')->get();
+        $belumBayarUsers = collect(); // Gunakan collection untuk menampung user yang belum bayar
+
+        foreach ($semuaUser as $user) {
+            $totalBayarUser = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->sum('jumlah');
+
+            $bulanTercover = floor($totalBayarUser / $nominalPerBulan);
+
+            $pembayaranPertama = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->orderBy('tanggal', 'asc')
+                ->first();
+
+            $sudahBayarBulanIni = false;
+            if ($pembayaranPertama) {
+                $startDate = Carbon::parse($pembayaranPertama->tanggal)->startOfMonth();
+                // Hitung tanggal akhir cakupan pembayaran
+                // addMonths($bulanTercover - 1) karena bulan pertama sudah dihitung oleh startDate
+                $endDate = $startDate->copy()->addMonths($bulanTercover - 1);
+
+                // Cek apakah bulan target tercover oleh pembayaran
+                if ($targetDate >= $startDate && $targetDate <= $endDate) {
+                    $sudahBayarBulanIni = true;
+                }
+            }
+
+            // Jika user belum bayar untuk bulan ini, tambahkan ke daftar
+            if (!$sudahBayarBulanIni) {
+                $belumBayarUsers->push($user);
+            }
+        }
+        // ========== AKHIR LOGIKA BARU ==========
+
 
         $successCount = 0;
         $failedCount = 0;
         $failedEmails = [];
 
+        // Kirim email hanya ke user yang ada di collection $belumBayarUsers
         foreach ($belumBayarUsers as $user) {
-            // Kirim satu email saja ke user yang belum bayar semua iuran wajib
-            $firstJenisKas = $mandatoryJenisKases->first(); // Ambil satu jenis kas saja untuk nama di email
-            if ($firstJenisKas) {
-                try {
-                    Mail::to($user->email)->send(new BulkPaymentReminder($user, 'Iuran Wajib'));
-                    $successCount++;
-                } catch (\Exception $e) {
-                    $failedCount++;
-                    $failedEmails[] = $user->email;
-                    Log::error("Gagal mengirim email ke {$user->email} untuk iuran wajib di bulan {$bulanIni}/{$tahunIni}: " . $e->getMessage());
-                }
+            try {
+                // Pastikan Anda passing bulan dan tahun ke Mailable jika perlu
+                Mail::to($user->email)->send(new BulkPaymentReminder($user, $jenisKas->nama_jenis_kas, $bulan, $tahun));
+                $successCount++;
+            } catch (\Exception $e) {
+                $failedCount++;
+                $failedEmails[] = $user->email;
+                Log::error("Gagal mengirim email ke {$user->email} untuk {$jenisKas->nama_jenis_kas} bulan {$bulan}/{$tahun}: " . $e->getMessage());
             }
         }
 
-        $message = $jenisKasId
-            ? "Berhasil mengirim {$successCount} email, gagal mengirim {$failedCount} email untuk jenis kas wajib."
-            : "Berhasil mengirim {$successCount} email, gagal mengirim {$failedCount} email kepada anggota yang belum membayar seluruh iuran wajib bulan ini.";
+        // Ambil nama bulan untuk pesan respons
+        $namaBulan = Carbon::create(null, $bulan)->translatedFormat('F');
 
         return response()->json([
             'success' => true,
-            'message' => $message,
+            'message' => "Berhasil mengirim {$successCount} email, gagal mengirim {$failedCount} email untuk {$jenisKas->nama_jenis_kas} bulan {$namaBulan} {$tahun}.",
             'failed_emails' => $failedEmails,
             'total_recipients' => $belumBayarUsers->count()
         ]);
     }
+    private function sendFonnteMessage($phone, $message)
+    {
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '62' . substr($phone, 1);
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => env('FONNTE_API_KEY'),
+        ])->asForm()->post('https://api.fonnte.com/send', [
+            'target' => $phone,
+            'message' => $message,
+        ]);
+
+        return $response->successful();
+    }
+    public function sendWhatsappReminder(Request $request)
+    {
+        $user = \App\Models\User::find($request->input('user_id'));
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User tidak ditemukan.']);
+        }
+
+        $pesan = "Halo {$user->name},   \n\n" .
+            "Ini adalah pengingat untuk pembayaran iuran wajib bulan ini. " .
+            "Pastikan Anda melakukan pembayaran sebelum tanggal jatuh tempo.\n\n" .
+            "Jika ada pertanyaan, silakan hubungi kami ";
+
+        if ($this->sendFonnteMessage($user->no_hp, $pesan)) {
+            return response()->json(['success' => true, 'message' => 'Pesan berhasil dikirim!']);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Gagal mengirim pesan.']);
+    }
+    public function kirimWhatsappPerJenisKas(Request $request)
+    {
+        $bulan = $request->input('bulan');
+        $tahun = $request->input('tahun');
+        $jenisKasId = $request->input('jenis_kas_id');
+
+        // Validasi input
+        if (!$bulan || !$tahun || !$jenisKasId) {
+            return response()->json(['success' => false, 'message' => 'Parameter bulan, tahun, dan jenis kas diperlukan.'], 400);
+        }
+
+        $jenisKas = JenisKas::find($jenisKasId);
+        if (!$jenisKas || $jenisKas->tipe_iuran !== 'wajib') {
+            return response()->json(['success' => false, 'message' => 'Jenis kas wajib tidak ditemukan.'], 404);
+        }
+
+        // ========== LOGIKA UNTUK MENCARI USER BELUM BAYAR (SAMA SEPERTI EMAIL) ==========
+        $target = $jenisKas->target_lunas;
+        $nominalPerBulan = $jenisKas->nominal_wajib ?? 10000;
+        $targetDate = Carbon::create($tahun, $bulan, 1)->startOfMonth();
+
+        $semuaUser = User::where('role', 'user')->get();
+        $belumBayarUsers = collect();
+
+        foreach ($semuaUser as $user) {
+            $totalBayarUser = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->sum('jumlah');
+
+            $bulanTercover = floor($totalBayarUser / $nominalPerBulan);
+
+            $pembayaranPertama = Kas::where('user_id', $user->id)
+                ->where('jenis_kas_id', $jenisKas->id)
+                ->where('tipe', 'pemasukan')
+                ->orderBy('tanggal', 'asc')
+                ->first();
+
+            $sudahBayarBulanIni = false;
+            if ($pembayaranPertama) {
+                $startDate = Carbon::parse($pembayaranPertama->tanggal)->startOfMonth();
+                $endDate = $startDate->copy()->addMonths($bulanTercover - 1);
+                if ($targetDate >= $startDate && $targetDate <= $endDate) {
+                    $sudahBayarBulanIni = true;
+                }
+            }
+
+            if (!$sudahBayarBulanIni) {
+                $belumBayarUsers->push($user);
+            }
+        }
+        // ========== AKHIR LOGIKA ==========
+
+        $berhasil = 0;
+        $gagal = 0;
+        $namaBulan = Carbon::create($tahun, $bulan)->translatedFormat('F Y');
+
+        foreach ($belumBayarUsers as $user) {
+            if (empty($user->no_hp)) {
+                $gagal++;
+                Log::warning("Gagal kirim WA ke {$user->name}, nomor HP kosong.");
+                continue;
+            }
+
+            $pesan = "Halo {$user->name},\n\n"
+                . "Pengingat: Anda memiliki tunggakan iuran *{$jenisKas->nama_jenis_kas}* untuk bulan "
+                . "{$namaBulan}.\n\n"
+                . "Mohon untuk segera melakukan pembayaran. Terima kasih.";
+
+            if ($this->sendFonnteMessage($user->no_hp, $pesan)) {
+                $berhasil++;
+            } else {
+                $gagal++;
+                Log::error("Gagal mengirim WA ke {$user->no_hp} - {$user->name}");
+            }
+        }
+
+        // Kembalikan response dalam bentuk JSON
+        return response()->json([
+            'success' => true,
+            'message' => "Pengingat WhatsApp terkirim: {$berhasil} berhasil, {$gagal} gagal.",
+        ]);
+    }
+
+
     public function exportAllDataToExcel(Request $request)
     {
         // Ambil tahun yang dipilih, default tahun sekarang

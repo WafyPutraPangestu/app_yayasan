@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\JenisKasExport;
 use App\Models\JenisKas;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class JenisKasController extends Controller
 {
@@ -25,6 +27,15 @@ class JenisKasController extends Controller
     {
         return view('admin.jenis-kas.create');
     }
+    public function exportExcel() // <-- TAMBAHKAN FUNGSI BARU INI
+    {
+        // Menentukan nama file dengan tanggal saat ini
+        $fileName = 'daftar_jenis_kas_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+        // Mengunduh file menggunakan class export yang sudah kita buat
+        return Excel::download(new JenisKasExport, $fileName);
+    }
+
 
     /**
      * Menyimpan jenis kas baru ke dalam database.
@@ -33,7 +44,7 @@ class JenisKasController extends Controller
     {
         // Validasi data yang masuk dari form, termasuk 'target_lunas'
         $validatedData =  $request->validate([
-            'kode_jenis_kas' => 'required|string|max:20|unique:jenis_kas,kode_jenis_kas',
+            'kode_jenis_kas' => 'required|numeric|max:4|unique:jenis_kas,kode_jenis_kas',
             'nama_jenis_kas' => 'required|string|max:100|unique:jenis_kas,nama_jenis_kas',
             'default_tipe' => ['required', Rule::in(['pemasukan', 'pengeluaran'])],
             'tipe_iuran' => ['required', Rule::in(['wajib', 'sukarela'])],
@@ -48,6 +59,10 @@ class JenisKasController extends Controller
             'nominal_wajib.required_if' => 'Nominal wajib harus diisi jika tipe iuran adalah "Wajib".',
             'default_tipe.required' => 'Tipe default (pemasukan/pengeluaran) wajib dipilih.',
             'target_lunas.gte' => 'Target lunas tidak boleh lebih kecil dari nominal wajib per periode.',
+            'kode_jenis_kas.unique' => 'Kode jenis kas ini sudah terdaftar.',
+            'kode_jenis_kas.max' => 'Kode jenis kas maksimal 4 karakter.',
+            'kode_jenis_kas.numeric' => 'Kode jenis kas wajib angka.',
+            'kode_jenis_kas.required' => 'Kode jenis kas wajib diisi.',
         ]);
 
         // Logika tambahan: Jika tipe iuran adalah 'sukarela', pastikan nominal_wajib dan target_lunas bernilai null.

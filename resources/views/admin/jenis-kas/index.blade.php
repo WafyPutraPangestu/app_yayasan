@@ -3,10 +3,26 @@
         <!-- Header Section -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">Manajemen Jenis Kas</h1>
-            <a href="{{ route('jenis-kas.create') }}"
-                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Tambah Jenis Kas
-            </a>
+
+            <!-- Grup Tombol -->
+            <div class="flex items-center gap-4">
+                <a href="{{ route('jenis-kas.create') }}"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out">
+                    Tambah Jenis Kas
+                </a>
+
+                <!-- TOMBOL BARU UNTUK EXPORT EXCEL -->
+                <a href="{{ route('jenis-kas.export.excel') }}"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    Export ke Excel
+                </a>
+            </div>
         </div>
 
         <!-- Session Messages -->
@@ -29,22 +45,28 @@
                     <tr>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            No</th>
+                            No
+                        </th>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Nama Jenis</th>
+                            Nama Jenis
+                        </th>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Nominal Wajib</th>
+                            Nominal Wajib
+                        </th>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Target Lunas</th>
+                            Target Lunas
+                        </th>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Status</th>
+                            Status
+                        </th>
                         <th
                             class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Aksi</th>
+                            Aksi
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -52,7 +74,8 @@
                         <tr>
                             <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <p class="text-gray-900 whitespace-no-wrap">
-                                    {{ $loop->iteration + ($jenisKas->currentPage() - 1) * $jenisKas->perPage() }}</p>
+                                    {{ $loop->iteration + ($jenisKas->currentPage() - 1) * $jenisKas->perPage() }}
+                                </p>
                             </td>
                             <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <p class="text-gray-900 whitespace-no-wrap font-semibold">{{ $item->nama_jenis_kas }}
@@ -69,7 +92,6 @@
                                     @endif
                                 </p>
                             </td>
-                            {{-- Kolom Target Lunas Ditambahkan --}}
                             <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <p class="text-gray-900 whitespace-no-wrap">
                                     @if ($item->tipe_iuran == 'wajib' && $item->target_lunas)

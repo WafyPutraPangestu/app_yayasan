@@ -70,6 +70,9 @@ Route::middleware(['admin'])->group(function () {
     Route::get('/dashboard/iuran-sukarela-detail', [DashboardAdminController::class, 'getIuranSukarelaDetail'])
         ->name('dashboard.iuran-sukarela-detail');
     Route::get('/admin/dashboard/export/all', [App\Http\Controllers\DashboardAdminController::class, 'exportAllDataToExcel'])->name('dashboard.export.all');
+    Route::post('/kirim-wa', [DashboardAdminController::class, 'sendWhatsappReminder']);
+    Route::post('/kirim-wa/reminder', [DashboardAdminController::class, 'kirimWhatsappPerJenisKas'])->name('kirim.whatsapp.reminder');
+    Route::get('/jenis-kas/export/excel', [JenisKasController::class, 'exportExcel'])->name('jenis-kas.export.excel');
 });
 
 

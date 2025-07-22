@@ -44,22 +44,20 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="md:col-span-1">
-                    <h3 class="text-md font-semibold mb-2">Pemasukan & Cashflow</h3>
-                    <canvas id="financialChart" style="height: 350px;"></canvas>
+                    <h3 class="text-md font-semibold mb-2">Pemasukan & Pengeluaran</h3>
+                    <canvas id="financialChart" style="height: 400px; max-height: 400px;"></canvas>
                 </div>
                 <div class="md:col-span-1">
-                    <h3 class="text-md font-semibold mb-2">Pengeluaran</h3>
-                    <canvas id="expenseChart" style="height: 350px;"></canvas>
+                    <h3 class="text-md font-semibold mb-2">Pemasukan vs Pengeluaran</h3>
+                    <canvas id="pieChart" style="height: 350px;"></canvas>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="md:col-span-1">
-                    <h3 class="text-md font-semibold mb-2">Pemasukan per Jenis Kas</h3>
-                    <canvas id="doughnutChart" style="height: 350px;"></canvas>
+                    {{-- <h3 class="text-md font-semibold mb-2">Pemasukan per Jenis Kas</h3>
+                    <canvas id="doughnutChart" style="height: 350px;"></canvas> --}}
                 </div>
                 <div class="md:col-span-1">
-                    <h3 class="text-md font-semibold mb-2">Pengeluaran per Keterangan</h3>
-                    <canvas id="pieChart" style="height: 350px;"></canvas>
                 </div>
             </div>
         </div>
@@ -413,8 +411,8 @@
                         @foreach ($trackingBulanan as $jenisKasId => $dataPerJenis)
                             @if (!empty($dataPerJenis))
                                 <option
-                                    value="{{ $dataPerJenis[array_key_first($dataPerJenis)][array_key_first($dataPerJenis[array_key_first($dataPerJenis)])]['nama_kas'] }}">
-                                    {{ $dataPerJenis[array_key_first($dataPerJenis)][array_key_first($dataPerJenis[array_key_first($dataPerJenis)])]['nama_kas'] }}
+                                    value="{{ $dataPerJenis[array_key_first($dataPerJenis)][array_key_first($dataPerJenis[array_key_first($dataPerJenis)])]['nama_kas'] ?? '' }}">
+                                    {{ $dataPerJenis[array_key_first($dataPerJenis)][array_key_first($dataPerJenis[array_key_first($dataPerJenis)])]['nama_kas'] ?? 'Nama Kas Tidak Ditemukan' }}
                                 </option>
                             @endif
                         @endforeach
@@ -586,11 +584,23 @@
                                             <p class="font-medium" x-text="item.name"></p>
                                             <p class="text-xs text-gray-500" x-text="item.email"></p>
                                         </div>
-                                        <button type="button" class="btn-primary btn-xs"
-                                            @click="sendReminderEmail(item.id)" :disabled="sendingEmail == item.id"
-                                            x-text="sendingEmail == item.id ? 'Mengirim...' : 'Kirim Email'"></button>
+                                        <div class="flex gap-2">
+                                            <button type="button" class="btn-primary btn-xs"
+                                                @click="sendReminderEmail(item.id)"
+                                                :disabled="sendingEmail == item.id"
+                                                x-text="sendingEmail == item.id ? 'Mengirim...' : 'Kirim Email'">
+                                            </button>
+
+                                            <button type="button" class="btn-primary btn-xs"
+                                                @click="sendWhatsappReminder(item.id)"
+                                                :disabled="sendingWa == item.id"
+                                                x-text="sendingWa == item.id ? 'Mengirim...' : 'Kirim WA'">
+                                            </button>
+                                        </div>
                                     </li>
                                 </template>
+
+
                             </ul>
                             <div x-show="emailMessage" class="mt-4"
                                 :class="{ 'text-success-500': emailSuccess, 'text-danger-500': !emailSuccess }"
@@ -604,6 +614,17 @@
                             <div x-show="bulkEmailMessage" class="mt-2 text-sm"
                                 :class="bulkEmailMessage.includes('Berhasil') ? 'text-green-500' : 'text-red-500'"
                                 x-text="bulkEmailMessage"></div>
+                        </div>
+                        <!-- Tombol Kirim WA ke Semua -->
+                        <div class="mt-2">
+                            <button @click="sendBulkWhatsappReminders()" :disabled="bulkSendingWa"
+                                class="btn-primary mt-2 w-full">
+                                <span
+                                    x-text="bulkSendingWa ? 'Mengirim WA ke semua...' : 'Kirim WA ke Semua yang Belum Bayar'"></span>
+                            </button>
+                            <div x-show="bulkWaMessage" class="mt-2 text-sm"
+                                :class="bulkWaMessage.includes('Pesan terkirim') ? 'text-green-500' : 'text-red-500'"
+                                x-text="bulkWaMessage"></div>
                         </div>
                     </div>
                     <button @click="modal.open = false" class="mt-6 w-full btn-secondary">Tutup</button>
@@ -622,9 +643,10 @@
                 tahunDipilih: {{ $tahunDipilih }},
                 tahunTersedia: [],
                 chart: null,
-                expenseChart: null,
-                doughnutChart: null,
                 pieChart: null,
+                sendingWa: null,
+                bulkSendingWa: false,
+                bulkWaMessage: '',
                 modal: {
                     open: false,
                     loading: false,
@@ -660,21 +682,86 @@
                     this.renderFinancialChart(
                         @json($bulanLabels),
                         @json($chartDataPemasukan),
-                        @json($chartCashflow)
-                    );
-                    this.renderExpenseChart(
-                        @json($bulanLabels),
                         @json($chartDataPengeluaran)
                     );
-                    this.renderDoughnutChart(
-                        @json($pemasukankuanganPerJenis->pluck('nama')->toArray()),
-                        @json($pemasukankuanganPerJenis->pluck('total')->toArray())
+                    this.renderCombinedPieChart( // Panggil fungsi pie chart gabungan
+                        {{ $totalPemasukan }},
+                        {{ $totalPengeluaran }}
                     );
-                    this.renderPieChart(
-                        @json($pengeluarankuanganPerJenis->pluck('keterangan')->toArray()),
-                        @json($pengeluarankuanganPerJenis->pluck('total')->toArray())
-                    );
+                    // this.renderDoughnutChart( // Dihapus
+                    //  @json($pemasukankuanganPerJenis->pluck('nama')->toArray()),
+                    //  @json($pemasukankuanganPerJenis->pluck('total')->toArray())
+                    // );
+                    // this.renderExpenseChart( // Dihapus
+                    //  @json($bulanLabels),
+                    //  @json($chartDataPengeluaran)
+                    // );
+                    // this.renderPieChart( // Dihapus
+                    //  @json($pengeluarankuanganPerJenis->pluck('keterangan')->toArray()),
+                    //  @json($pengeluarankuanganPerJenis->pluck('total')->toArray())
+                    // );
                 },
+                sendWhatsappReminder(id) {
+                    this.sendingWa = id;
+                    fetch('/kirim-wa', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                                    'content')
+                            },
+                            body: JSON.stringify({
+                                user_id: id
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Gagal mengirim WhatsApp.');
+                        })
+                        .finally(() => {
+                            this.sendingWa = null;
+                        });
+                },
+                sendBulkWhatsappReminders() {
+                    if (confirm(
+                            'Anda yakin ingin mengirim pengingat WhatsApp ke semua anggota yang belum membayar pada periode ini?'
+                        )) {
+                        this.bulkSendingWa = true;
+                        this.bulkWaMessage = '';
+
+                        fetch('{{ route('kirim.whatsapp.reminder') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({
+                                    tahun: this.modal.data.tahun,
+                                    bulan: this.modal.data.bulan,
+                                    jenis_kas_id: this.modal.data.jenis_kas_id
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                this.bulkWaMessage = data.message;
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                this.bulkWaMessage = 'Terjadi kesalahan saat mengirim pesan WhatsApp.';
+                            })
+                            .finally(() => {
+                                this.bulkSendingWa = false;
+                                setTimeout(() => {
+                                    this.bulkWaMessage = '';
+                                }, 5000); // Sembunyikan pesan setelah 5 detik
+                            });
+                    }
+                },
+
                 showIuranSukarelaModal() {
                     this.sukarelaModal.open = true;
                     this.sukarelaModal.loading = true;
@@ -750,173 +837,124 @@
                         .then(res => res.json())
                         .then(result => {
                             if (result.success) {
-                                this.renderFinancialChart(result.data.bulan_labels, result.data.chart_pemasukan,
-                                    result.data.chart_cashflow);
-                                this.renderExpenseChart(result.data.bulan_labels, result.data.chart_pengeluaran);
+                                this.renderFinancialChart(
+                                    result.data.bulan_labels,
+                                    result.data.chart_pemasukan,
+                                    result.data.chart_pengeluaran
+                                );
+                                // this.renderExpenseChart(result.data.bulan_labels, result.data.chart_pengeluaran); // Dihapus
                             }
                         });
                 },
 
-                renderFinancialChart(labels, pemasukan, cashflow) {
+                renderFinancialChart(labels, pemasukan, pengeluaran) {
                     try {
                         const ctx = document.getElementById('financialChart').getContext('2d');
                         if (this.chart) {
                             this.chart.destroy();
                         }
+
+                        const labelsId = labels.map(dateString => {
+                            const parts = dateString.split('-');
+                            if (parts.length === 2) {
+                                const year = parts[0];
+                                const month = parseInt(parts[1]);
+                                const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli',
+                                    'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                                ];
+                                return `${monthNames[month - 1]} ${year}`;
+                            }
+                            return dateString; // Return original if format is unexpected
+                        });
+
                         this.chart = new Chart(ctx, {
                             type: 'bar',
                             data: {
-                                labels: labels,
+                                labels: labelsId,
                                 datasets: [{
                                     label: 'Pemasukan',
                                     data: pemasukan,
                                     backgroundColor: 'rgba(5, 150, 105, 0.7)', // Hijau
                                     yAxisID: 'y',
                                 }, {
-                                    label: 'Cashflow',
-                                    data: cashflow,
-                                    backgroundColor: 'rgba(37, 99, 235, 0.7)',
-                                    yAxisID: 'y',
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                }
-                            }
-                        });
-                    } catch (e) {
-                        console.error('Gagal merender chart pemasukan:', e);
-                    }
-                },
-
-                renderExpenseChart(labels, pengeluaran) {
-                    try {
-                        const ctx = document.getElementById('expenseChart').getContext('2d');
-                        if (this.expenseChart) {
-                            this.expenseChart.destroy();
-                        }
-                        this.expenseChart = new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: labels,
-                                datasets: [{
                                     label: 'Pengeluaran',
                                     data: pengeluaran,
-                                    borderColor: 'rgba(220, 38, 38, 1)', // Merah
                                     backgroundColor: 'rgba(220, 38, 38, 0.7)', // Merah
-                                    fill: true,
                                     yAxisID: 'y',
                                 }]
                             },
                             options: {
                                 responsive: true,
+                                maintainAspectRatio: false,
                                 scales: {
+                                    x: {
+                                        ticks: {
+                                            autoSkip: false,
+                                            maxRotation: 45,
+                                            minRotation: 90
+                                        }
+                                    },
                                     y: {
-                                        beginAtZero: true
+                                        beginAtZero: false
                                     }
-                                }
-                            }
-                        });
-                    } catch (e) {
-                        console.error('Gagal merender chart pengeluaran:', e);
-                    }
-                },
-
-                renderDoughnutChart(labels, data) {
-                    try {
-                        const ctx = document.getElementById('doughnutChart').getContext('2d');
-                        if (this.doughnutChart) {
-                            this.doughnutChart.destroy();
-                        }
-                        this.doughnutChart = new Chart(ctx, {
-                            type: 'doughnut',
-                            data: {
-                                labels: labels,
-                                datasets: [{
-                                    data: data,
-                                    backgroundColor: [
-                                        'rgba(5, 150, 105, 0.8)', // Hijau
-                                        'rgba(54, 162, 235, 0.8)',
-                                        'rgba(255, 206, 86, 0.8)',
-                                        'rgba(75, 192, 192, 0.8)',
-                                        'rgba(153, 102, 255, 0.8)',
-                                        'rgba(255, 159, 64, 0.8)',
-                                        // Tambahkan warna lain jika perlu
-                                    ],
-                                    borderColor: [
-                                        'rgba(5, 150, 105, 1)', // Hijau
-                                        'rgba(54, 162, 235, 1)',
-                                        'rgba(255, 206, 86, 1)',
-                                        'rgba(75, 192, 192, 1)',
-                                        'rgba(153, 102, 255, 1)',
-                                        'rgba(255, 159, 64, 1)',
-                                        // Tambahkan warna lain jika perlu
-                                    ],
-                                    borderWidth: 1,
-                                }]
-                            },
-                            options: {
-                                responsive: true,
+                                },
                                 plugins: {
                                     legend: {
-                                        position: 'right',
+                                        position: 'top',
                                     },
-                                }
-                            }
+                                    title: {
+                                        display: false,
+                                    },
+                                },
+                            },
                         });
                     } catch (e) {
-                        console.error('Gagal merender chart doughnut:', e);
+                        console.error('Gagal merender chart keuangan:', e);
                     }
                 },
 
-                renderPieChart(labels, data) {
+                renderExpenseChart(labels, pengeluaran) { // Dihapus
+                    // ... (kode renderExpenseChart Anda sebelumnya)
+                },
+
+                renderDoughnutChart(labels, data) { // Dihapus
+                    // ... (kode renderDoughnutChart Anda sebelumnya)
+                },
+
+                renderPieChart(labels, data) { // Dihapus
+                    // ... (kode renderPieChart Anda sebelumnya)
+                },
+
+                renderCombinedPieChart(totalPemasukan, totalPengeluaran) {
                     try {
-                        const ctx = document.getElementById('pieChart').getContext('2d');
+                        const ctx = document.getElementById('pieChart').getContext(
+                            '2d'); // Menggunakan ID pieChart untuk contoh
                         if (this.pieChart) {
                             this.pieChart.destroy();
                         }
                         this.pieChart = new Chart(ctx, {
                             type: 'pie',
                             data: {
-                                labels: labels,
+                                labels: ['Total Pemasukan', 'Total Pengeluaran'],
                                 datasets: [{
-                                    data: data,
+                                    data: [totalPemasukan, totalPengeluaran],
                                     backgroundColor: [
-                                        'rgba(220, 38, 38, 0.8)', // Merah
-                                        'rgba(54, 162, 235, 0.8)',
-                                        'rgba(255, 206, 86, 0.8)',
-                                        'rgba(75, 192, 192, 0.8)',
-                                        'rgba(153, 102, 255, 0.8)',
-                                        'rgba(255, 159, 64, 0.8)',
-                                        // Tambahkan warna lain jika perlu
+                                        'rgba(5, 150, 105, 0.8)', // Hijau untuk pemasukan
+                                        'rgba(220, 38, 38, 0.8)', // Merah untuk pengeluaran
                                     ],
                                     borderColor: [
-                                        'rgba(220, 38, 38, 1)', // Merah
-                                        'rgba(54, 162, 235, 1)',
-                                        'rgba(255, 206, 86, 1)',
-                                        'rgba(75, 192, 192, 1)',
-                                        'rgba(153, 102, 255, 1)',
-                                        'rgba(255, 159, 64, 1)',
-                                        // Tambahkan warna lain jika perlu
+                                        'rgba(5, 150, 105, 1)',
+                                        'rgba(220, 38, 38, 1)',
                                     ],
                                     borderWidth: 1,
                                 }]
                             },
                             options: {
                                 responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'right',
-                                    },
-                                }
                             }
                         });
                     } catch (e) {
-                        console.error('Gagal merender chart pie:', e);
+                        console.error('Gagal merender chart pie gabungan:', e);
                     }
                 },
 
@@ -982,67 +1020,67 @@
                             '<span class="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">Belum Lunas</span>';
 
                         progressRows += `
-                    <tr class="border-b border-gray-200 hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm">${index + 1}</td>
-                        <td class="px-4 py-3">
-                            <div class="text-sm font-medium text-gray-900">${progress.user.name}</div>
-                            <div class="text-xs text-gray-500">${progress.user.id_anggota || '-'}</div>
-                        </td>
-                        <td class="px-4 py-3 text-sm">Rp ${progress.total_terbayar.toLocaleString('id-ID')}</td>
-                        <td class="px-4 py-3 text-sm">Rp ${progress.sisa_bayar.toLocaleString('id-ID')}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex items-center">
-                                <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                                    <div class="bg-primary-600 h-2 rounded-full" style="width: ${progress.persentase}%"></div>
-                                </div>
-                                <span class="text-xs text-gray-600">${progress.persentase}%</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3">${statusBadge}</td>
-                    </tr>
-                `;
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm">${index + 1}</td>
+                                <td class="px-4 py-3">
+                                    <div class="text-sm font-medium text-gray-900">${progress.user.name}</div>
+                                    <div class="text-xs text-gray-500">${progress.user.id_anggota || '-'}</div>
+                                </td>
+                                <td class="px-4 py-3 text-sm">Rp ${progress.total_terbayar.toLocaleString('id-ID')}</td>
+                                <td class="px-4 py-3 text-sm">Rp ${progress.sisa_bayar.toLocaleString('id-ID')}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center">
+                                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-primary-600 h-2 rounded-full" style="width: ${progress.persentase}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">${progress.persentase}%</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">${statusBadge}</td>
+                            </tr>
+                        `;
                     });
 
                     const content = `
-                <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <div class="text-lg font-bold text-primary-600">Rp ${data.target_per_user.toLocaleString('id-ID')}</div>
-                            <div class="text-xs text-gray-600">Target per Anggota</div>
-                        </div>
-                        <div>
-                            <div class="text-lg font-bold text-green-600">${data.total_user_lunas}</div>
-                            <div class="text-xs text-gray-600">Anggota Lunas</div>
-                        </div>
-                        <div>
-                            <div class="text-lg font-bold text-orange-600">${data.total_user_belum_lunas}</div>
-                            <div class="text-xs text-gray-600">Belum Lunas</div>
-                        </div>
-                        <div>
-                            <div class="text-lg font-bold text-purple-600">${data.persentase_user_lunas}%</div>
-                            <div class="text-xs text-gray-600">% Anggota Lunas</div>
-                        </div>
-                    </div>
-                </div>
+                        <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div>
+                                    <div class="text-lg font-bold text-primary-600">Rp ${data.target_per_user.toLocaleString('id-ID')}</div>
+                                    <div class="text-xs text-gray-600">Target per Anggota</div>
+                                </div>
+                                <div>
+                                    <div class="text-lg font-bold text-green-600">${data.total_user_lunas}</div>
+                                    <div class="text-xs text-gray-600">Anggota Lunas</div>
+                                </div>
+                                <div>
+                                    <div class="text-lg font-bold text-orange-600">${data.total_user_belum_lunas}</div>
+                                    <div class="text-xs text-gray-600">Belum Lunas</div>
+                                </div>
+                                <div>
+                                    <div class="text-lg font-bold text-purple-600">${data.persentase_user_lunas}%</div>
+                                    <div class="text-xs text-gray-600">% Anggota Lunas</div>
+                                </div>
+                            </div>
+                        </div>
     
-                <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anggota</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sudah Bayar</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sisa</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${progressRows}
-                        </tbody>
-                    </table>
-                </div>
-            `;
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anggota</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sudah Bayar</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sisa</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${progressRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
 
                     document.getElementById('progressDetailContent').innerHTML = content;
                     document.getElementById('progressDetailModal').classList.remove('hidden');

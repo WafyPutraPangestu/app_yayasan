@@ -22,12 +22,13 @@
                         <!-- Simplified stats - Only Total and Active Members -->
                         <div class="mt-4 grid grid-cols-2 gap-4 text-center">
                             <div class="bg-white/10 rounded-lg p-4">
-                                <div class="text-3xl font-bold text-success-300">{{ $stats['total_users'] }}+</div>
-                                <div class="text-sm text-gray-200">Total Anggota</div>
+                                <div class="text-3xl font-bold text-accent-400 form-blue-400">
+                                    {{ $stats['total_users'] }}+</div>
+                                <div class="text-sm text-accent-600">Total Anggota</div>
                             </div>
                             <div class="bg-white/10 rounded-lg p-4">
-                                <div class="text-3xl font-bold text-accent-200">{{ $stats['active_users'] }}+</div>
-                                <div class="text-sm text-gray-200">Anggota Aktif</div>
+                                <div class="text-3xl font-bold text-accent-400">{{ $stats['active_users'] }}+</div>
+                                <div class="text-sm text-accent-700">Anggota Aktif</div>
                             </div>
                         </div>
                     </div>

@@ -5,15 +5,15 @@
         <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
-                    <i class="fas fa-mosque text-white text-lg"></i>
+                    <img src="{{ asset('images/home/logo_yayasan.png') }}" alt="Logo Yayasan">
                 </div>
                 <div>
                     <h1 class="text-lg font-bold">Yayasan</h1>
                     <p class="text-xs opacity-90">Management System</p>
                 </div>
             </div>
-            <button onclick="toggleMobileSidebar()" class="p-1 rounded-md hover:bg-blue-500">
-                <i class="fas fa-times text-white"></i>
+            <button onclick="toggleMobileSidebar()" class="p-1 rounded-md hover:bg-white/20">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
@@ -36,7 +36,7 @@
                             <button @click="open = !open"
                                 class="w-full nav-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200">
                                 <i class="fas fa-users-cog mr-3 text-gray-400 group-hover:text-blue-600"></i>
-                                <span class="flex-1 text-left">Manajemen Admin</span>
+                                <span class="flex-1 text-left">Manajemen Anggota</span>
                                 <i :class="open ? 'transform rotate-180' : ''"
                                     class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
                             </button>
@@ -45,7 +45,7 @@
                                 <li>
                                     <a href="{{ route('manajemen-admin.index') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('manajemen-admin.index') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-list mr-2"></i> Daftar Admin
+                                        <i class="fas fa-list mr-2"></i> Daftar Data Anggota
                                     </a>
                                 </li>
                                 <li>
@@ -95,13 +95,13 @@
                                 <li>
                                     <a href="{{ route('kas.index') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('kas.index') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-list mr-2"></i> Daftar Kas
+                                        <i class="fas fa-list mr-2"></i> Daftar Data Kas
                                     </a>
                                 </li>
                                 <li>
                                     <a href="{{ route('kas.create') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('kas.create') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Kas
+                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Transaksi Kas
                                     </a>
                                 </li>
                             </ul>
@@ -192,7 +192,7 @@
             class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white">
             <div class="flex items-center space-x-3" x-show="sidebarOpen">
                 <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
-                    <i class="fas fa-mosque text-white text-lg"></i>
+                    <img src="{{ asset('images/home/logo_yayasan.png') }}" alt="Logo Yayasan">
                 </div>
                 <div>
                     <h1 class="text-lg font-bold">Yayasan</h1>
@@ -225,7 +225,7 @@
                             <button @click="open = !open"
                                 class="w-full nav-link group flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200">
                                 <i class="fas fa-users-cog mr-3 text-gray-400 group-hover:text-blue-600"></i>
-                                <span x-show="sidebarOpen" class="flex-1 text-left">Manajemen Admin</span>
+                                <span x-show="sidebarOpen" class="flex-1 text-left">Manajemen Anggota </span>
                                 <i x-show="sidebarOpen" :class="open ? 'transform rotate-180' : ''"
                                     class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
                             </button>
@@ -234,13 +234,13 @@
                                 <li>
                                     <a href="{{ route('manajemen-admin.index') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('manajemen-admin.index') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-list mr-2"></i> Daftar Admin
+                                        <i class="fas fa-list mr-2"></i> Daftar Data Anggota
                                     </a>
                                 </li>
                                 <li>
                                     <a href="{{ route('manajemen-admin.create') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('manajemen-admin.create') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Admin
+                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Akun Anggota
                                     </a>
                                 </li>
                             </ul>
@@ -284,13 +284,13 @@
                                 <li>
                                     <a href="{{ route('kas.index') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('kas.index') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-list mr-2"></i> Daftar Kas
+                                        <i class="fas fa-list mr-2"></i> Daftar Data Kas
                                     </a>
                                 </li>
                                 <li>
                                     <a href="{{ route('kas.create') }}"
                                         class="nav-link-sub flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 {{ request()->routeIs('kas.create') ? 'bg-blue-50 text-blue-700' : '' }}">
-                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Kas
+                                        <i class="fas fa-plus-circle mr-2"></i> Tambah Transaksi Kas
                                     </a>
                                 </li>
                             </ul>
@@ -379,7 +379,7 @@
     <div class="flex flex-col h-full">
         <div class="flex items-center justify-center h-16 px-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center">
-                <i class="fas fa-mosque text-white text-lg"></i>
+                <img src="{{ asset('images/home/logo_yayasan.png') }}" alt="Logo Yayasan">
             </div>
         </div>
 
@@ -402,7 +402,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{{ route('manajemen-admin.index') }}" data-tooltip="Manajemen Admin"
+                        <a href="{{ route('manajemen-admin.index') }}" data-tooltip="Manajemen Aanggota"
                             class="flex items-center justify-center p-2 rounded-lg hover:bg-blue-50 text-gray-700
                                     {{ request()->routeIs('manajemen-admin.*') ? 'bg-blue-50 text-blue-700' : '' }}">
                             <i class="fas fa-users-cog text-lg"></i>

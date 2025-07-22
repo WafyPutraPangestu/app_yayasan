@@ -102,7 +102,10 @@ class KasController extends Controller
         }
 
         $query = JenisKas::where('status', 'aktif')
-            ->where('nama_jenis_kas', 'LIKE', "%{$search}%");
+            ->where(function ($q) use ($search) {
+                $q->where('nama_jenis_kas', 'LIKE', "%{$search}%")
+                    ->orWhere('kode_jenis_kas', 'LIKE', "%{$search}%");
+            });
 
         if ($tipe && in_array($tipe, ['pemasukan', 'pengeluaran'])) {
             $query->where('default_tipe', $tipe);
@@ -110,6 +113,7 @@ class KasController extends Controller
 
         $jenisKas = $query->limit(10)->get([
             'id',
+            'kode_jenis_kas',
             'nama_jenis_kas',
             'tipe_iuran',
             'nominal_wajib',
@@ -120,7 +124,8 @@ class KasController extends Controller
         $formattedJenisKas = $jenisKas->map(function ($jk) {
             return [
                 'id' => $jk->id,
-                'text' => $jk->nama_jenis_kas,
+                'kode_jenis_kas' => $jk->kode_jenis_kas,
+                'text' => "[{$jk->kode_jenis_kas}] {$jk->nama_jenis_kas}",
                 'tipe_iuran' => $jk->tipe_iuran,
                 'nominal_wajib' => $jk->nominal_wajib,
                 'target_lunas' => $jk->target_lunas,
@@ -130,6 +135,7 @@ class KasController extends Controller
 
         return response()->json($formattedJenisKas);
     }
+
     public function getJenisKasDetail($id)
     {
         $jenisKas = JenisKas::find($id);
@@ -295,10 +301,14 @@ class KasController extends Controller
 
     private function handleIuranWajib(Request $request, JenisKas $jenisKas)
     {
+        // $request->validate([
+        //     'bulan_iuran' => 'required|numeric|between:1,12',
+        //     'tahun_iuran' => 'required|numeric|digits:4',
+        // ]);
         $request->validate([
-            'bulan_iuran' => 'required|numeric|between:1,12',
-            'tahun_iuran' => 'required|numeric|digits:4',
+            'tanggal' => 'required|date',
         ]);
+        $tanggal = \Carbon\Carbon::parse($request->tanggal);
 
         $wajibKasProgress = WajibKasProgress::where('user_id', $request->user_id)
             ->where('jenis_kas_id', $jenisKas->id)
@@ -320,8 +330,8 @@ class KasController extends Controller
             'jumlah' => $request->jumlah,
             'keterangan' => $request->keterangan ?? "Cicilan Iuran: {$jenisKas->nama_jenis_kas}",
             'tanggal' => $request->tanggal,
-            'bulan_iuran' => $request->bulan_iuran,
-            'tahun_iuran' => $request->tahun_iuran,
+            'bulan_iuran' => $tanggal->month,
+            'tahun_iuran' => $tanggal->year,
         ]);
 
         $this->syncWajibKasProgress($request->user_id, $jenisKas->id);

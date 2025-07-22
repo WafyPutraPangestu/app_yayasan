@@ -338,21 +338,23 @@
                             </div>
                         </div>
                         <div x-show="metodePembayaran === 'bulanan'" x-transition>
-                            <label class="block text-sm font-medium text-secondary-700 mb-2">Bulan Iuran</label>
-                            <select name="bulan_iuran"
+                            {{-- <label class="block text-sm font-medium text-secondary-700 mb-2">Bulan Iuran</label>
+                            <select name="bulan_iuran" type ="hidden"
                                 class="block w-full px-4 py-3 border border-secondary-300 rounded-lg">
                                 @for ($m = 1; $m <= 12; $m++)
-                                    <option value="{{ $m }}"
+                                    <option type="hidden" value="{{ $m }}"
                                         @if (old('bulan_iuran', date('n')) == $m) selected @endif>
                                         {{ date('F', mktime(0, 0, 0, $m, 10)) }}</option>
                                 @endfor
-                            </select>
+                            </select> --}}
+                            <input type="hidden" name="bulan_iuran" value="{{ date('n') }}">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-secondary-700 mb-2">Tahun Iuran</label>
+                            {{-- <label class="block text-sm font-medium text-secondary-700 mb-2">Tahun Iuran</label>
                             <input type="number" name="tahun_iuran" value="{{ old('tahun_iuran', date('Y')) }}"
                                 class="block w-full px-4 py-3 border border-secondary-300 rounded-lg"
-                                placeholder="Contoh: 2025">
+                                placeholder="Contoh: 2025"> --}}
+                            <input type="hidden" name="tahun_iuran" value="{{ date('Y') }}">
                         </div>
                     </div>
 
